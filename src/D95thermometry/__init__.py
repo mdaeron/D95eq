@@ -14,6 +14,7 @@ import ogls as _ogls
 import uncertainties as _uc
 import lmfit as _lmfit
 
+from uncertainties import unumpy as _unp
 from D47calib import OGLS23 as _D47approx
 from D47calib import D47calib as _D47calib
 from matplotlib import pyplot as _ppl
@@ -21,10 +22,7 @@ from matplotlib.patches import Ellipse as _Ellipse
 from scipy.stats import chi2 as _chi2
 from scipy.linalg import eigh as _eigh
 from scipy.linalg import cholesky as _cholesky
-
-
-array_nv = _np.vectorize(lambda u: (u.n if hasattr(u, 'nominal_value') else u))
-array_se = _np.vectorize(lambda u: (u.s if hasattr(u, 'std_dev') else 0.))
+from scipy.optimize import fsolve as _fsolve
 
 
 _D47approx = _D47calib(
@@ -179,7 +177,7 @@ def D47_calib_function(
 	the D47 values without error propagation of any kind.
 	"""
 	if ignore_calib_uncertainties:
-		coefs = array_nv(coefs)
+		coefs = _unp.nominal_values(coefs)
 	D47 = _np.sum(
 		[
 		coefs[k] / (T + 273.15)**k
@@ -188,7 +186,7 @@ def D47_calib_function(
 		axis = 0,
 	)
 	if return_without_uncertainties:
-		return array_nv(D47)
+		return _unp.nominal_values(D47)
 	return D47
 
 
@@ -225,7 +223,7 @@ def D48_calib_function(
 	the D48 values without error propagation of any kind.
 	"""
 	if ignore_calib_uncertainties:
-		coefs = array_nv(coefs)
+		coefs = _unp.nominal_values(coefs)
 	D48 = _np.sum(
 		[
 		coefs[k] / (T + 273.15)**k
@@ -234,30 +232,77 @@ def D48_calib_function(
 		axis = 0,
 	)
 	if return_without_uncertainties:
-		return array_nv(D48)
+		return _unp.nominal_values(D48)
 	return D48
 
 def plot_D95_equilibrium(
 	Tmin = 0,
-	Tmax = 1200,
+	Tmax = 1000,
 	NT = 101,
 	Tmarkers = [0, 25, 100, 250, 1000],
-	kwargs_Tmarkers = dict(ls = 'None', marker = 'o', ms = 4, mfc = 'w', mec = 'k'),
+	kwargs_Tmarkers = {},
 	show_Tmarker_labels = True,
-	kwargs_Tmarker_labels = dict(size = 10, va = 'center', ha = 'left', linespacing = 3),
+	kwargs_Tmarker_labels = {},
 	show_Tmarker_ellipses = False,
-	kwargs_Tmarkers_ellipses = dict(fc = 'None', ec = 'r', lw = 0.7),
+	kwargs_Tmarker_ellipses = {},
+	show_Tmarker_errorbars = False,
+	kwargs_Tmarker_errorbars = {},
 	show_eqline = True,
-	kwargs_eqline = dict(marker = 'None', ls = '-', color = 'k', lw = 0.7),
+	kwargs_eqline = {},
 	show_D47ci = True,
-	kwargs_D47ci = dict(color = 'k', lw = 0, alpha = 0.15),
+	kwargs_D47ci = {},
 	show_D48ci = True,
-	kwargs_D48ci = dict(color = 'k', lw = 0, alpha = 0.15),
+	kwargs_D48ci = {},
 	ci_pvalue = 0.95,
 	ax = None,
 	xlabel = '$Δ_{47}$   [‰]',
 	ylabel = '$Δ_{48}$   [‰]',
+	lw = 0.7,
 ):
+	
+	default_kwargs_eqline = dict(
+		marker = 'None',
+		ls = '-',
+		color = 'k',
+		lw = lw,
+	)
+	default_kwargs_D48ci = dict(
+		color = 'k',
+		lw = 0,
+		alpha = 0.15,
+	)
+	default_kwargs_D47ci = dict(
+		color = 'k',
+		lw = 0,
+		alpha = 0.15,
+	)
+	default_kwargs_Tmarkers = dict(
+		ls = 'None',
+		marker = 'o',
+		ms = 4,
+		mfc = 'w',
+		mec = 'k',
+		mew = lw,
+	)
+	default_kwargs_Tmarker_ellipses = dict(
+		fc = 'None',
+		ec = 'k',
+		lw = lw,
+	)
+	default_kwargs_Tmarker_errorbars = dict(
+		ecolor = 'k',
+		elinewidth = 0.7,
+		capthick = 0.7,
+		capsize = 3,
+		ls = 'None',
+		marker = 'None',
+	)
+	default_kwargs_Tmarker_labels = dict(
+		size = 10,
+		va = 'center',
+		ha = 'left',
+		linespacing = 3,
+	)
 	
 	plot_elements = {}
 
@@ -281,42 +326,52 @@ def plot_D95_equilibrium(
 	
 	if show_eqline:
 		plot_elements['eqline'], = ax.plot(
-			array_nv(Xe),
-			array_nv(Ye),
-			**kwargs_eqline,
+			_unp.nominal_values(Xe),
+			_unp.nominal_values(Ye),
+			**(default_kwargs_eqline | kwargs_eqline),
 		)
 
 	if show_D48ci:
 		plot_elements['D48ci'] = ax.fill_between(
-			array_nv(Xe),
-			array_nv(Ye) - cif * array_se(Ye),
-			array_nv(Ye) + cif * array_se(Ye),
-			**kwargs_D48ci,
+			_unp.nominal_values(Xe),
+			_unp.nominal_values(Ye) - cif * _unp.std_devs(Ye),
+			_unp.nominal_values(Ye) + cif * _unp.std_devs(Ye),
+			**(default_kwargs_D48ci | kwargs_D48ci),
 		)
 
 	if show_D47ci:
 		plot_elements['D47ci'] = ax.fill_betweenx(
-			array_nv(Ye),
-			array_nv(Xe) - cif * array_se(Xe),
-			array_nv(Xe) + cif * array_se(Xe),
-			**kwargs_D47ci,
+			_unp.nominal_values(Ye),
+			_unp.nominal_values(Xe) - cif * _unp.std_devs(Xe),
+			_unp.nominal_values(Xe) + cif * _unp.std_devs(Xe),
+			**(default_kwargs_D47ci | kwargs_D47ci),
 		)
 	
 	Xm = D47_calib_function(Tmarkers)
 	Ym = D48_calib_function(Tmarkers)
 	if Tmarkers.size > 0:
 		plot_elements['Tm'] = ax.plot(
-			array_nv(Xm),
-			array_nv(Ym),
-			**kwargs_Tmarkers,
+			_unp.nominal_values(Xm),
+			_unp.nominal_values(Ym),
+			**(default_kwargs_Tmarkers | kwargs_Tmarkers),
 		)
 		if show_Tmarker_ellipses:
-			plot_elements['Tme'] = error_ellipses(Xm, Ym, ax = ax)
+			plot_elements['Tme'] = error_ellipses(
+				Xm,
+				Ym,
+				ax = ax,
+				**(default_kwargs_Tmarker_ellipses | kwargs_Tmarker_ellipses),
+			)
 		if show_Tmarker_labels:
 			plot_elements['Tml'] = []
 			for x,y,t in zip(Xm, Ym, Tmarkers):
 				plot_elements['Tml'].append(
-					ax.text(x.n, y.n, f'\n${t:.0f}\\,$°C', **kwargs_Tmarker_labels)
+					ax.text(
+						x.n,
+						y.n,
+						f'\n${t:.0f}\\,$°C',
+						**(default_kwargs_Tmarker_labels | kwargs_Tmarker_labels),
+					)
 				)
 
 	ax.autoscale_view()		
@@ -348,7 +403,7 @@ def nearest_Teq(
 	"""
 
 	N = X.size
-	_X = array_nv(X)
+	_X = _unp.nominal_values(X)
 
 	params = _lmfit.Parameters()
 	for k in range(N):
@@ -369,7 +424,7 @@ def nearest_Teq(
 		CMr = _np.array(_uc.covariance_matrix(R))
 		invS = _np.linalg.solve(CMr, _np.eye(2*N))
 		L = _cholesky(invS)
-		return L @ array_nv(R)
+		return L @ _unp.nominal_values(R)
 	
 	model = _lmfit.Minimizer(cost_fun, params, scale_covar = False)
 	minresult = model.minimize(method = 'least_squares')
@@ -380,14 +435,14 @@ def nearest_Teq(
 	))
 
 	R = _np.concatenate((
-		X - D47_calib_function(array_nv(Teq), return_without_uncertainties = ignore_calib_uncertainties),
-		Y - D48_calib_function(array_nv(Teq), return_without_uncertainties = ignore_calib_uncertainties),
+		X - D47_calib_function(_unp.nominal_values(Teq), return_without_uncertainties = ignore_calib_uncertainties),
+		Y - D48_calib_function(_unp.nominal_values(Teq), return_without_uncertainties = ignore_calib_uncertainties),
 	))
 	CMr = _np.array(_uc.covariance_matrix(R))
 	
 	p = _np.zeros((N,))
 	for k in range(N):
-		r = array_nv(R[k::N])
+		r = _unp.nominal_values(R[k::N])
 		cm = CMr[k::N,:][:,k::N]
 		invS = _np.linalg.solve(cm, _np.eye(2))
 		z = r.T @ invS @ r
@@ -395,6 +450,63 @@ def nearest_Teq(
 
 	
 	return Teq, p
+
+
+def projected_Teq(
+	X,
+	Y,
+	slope,
+	D47_calib_coefs = D47_calib_coefs,
+	D48_calib_coefs = D48_calib_coefs,
+	ignore_calib_uncertainties = False,
+):
+	N = X.size
+	N47c = D47_calib_coefs.size
+	N48c = D48_calib_coefs.size
+	T = X * 0
+	for k in range(N):
+
+		# function to solve
+		def fun(t, *args): # args = (X, Y, slope, *D47_calib_coefs, *D48_calib_coefs)
+			return (
+				args[1]
+				- _np.sum([
+					c / (t[0] + 273.15)**k
+					for k,c in enumerate(args[-N48c:])
+				])
+				- args[2] * (
+					args[0]
+					- _np.sum([
+						c / (t[0] + 273.15)**k
+						for k,c in enumerate(args[-N47c-N48c:-N48c])
+					])
+				)
+			)
+
+		def g(*args):
+			return _fsolve(fun, [25.], args = args)[0]
+		
+# 		T[k] = _uc.ufloat(g(
+# 			X[k].n,
+# 			Y[k].n,
+# 			slope.n,
+# 			*_unp.nominal_values(D47_calib_coefs),
+# 			*_unp.nominal_values(D48_calib_coefs),
+# 		), 0.)
+
+		wg = _uc.wrap(g)
+
+		T[k] = wg(
+			X[k],
+			Y[k],
+			slope,
+			*D47_calib_coefs,
+			*D48_calib_coefs,
+		)
+		
+	return T
+
+
 
 
 def save_array(
@@ -411,8 +523,8 @@ def save_array(
 		labels = [str(k+1) for k in range(X.size)]
 	with open(filename, 'w') as fid:
 		fid.write(f'{sep}{varname}{sep}SE{sep}correl')
-		nv = array_nv(X)
-		se = array_se(X)
+		nv = _unp.nominal_values(X)
+		se = _unp.std_devs(X)
 		cm = _np.array(_uc.correlation_matrix(X))
 		for k in range(X.size):
 			fid.write(f'\n{labels[k]}{sep}{nv[k]:{fmt_nv}}{sep}{se[k]:{fmt_se}}{sep}' + sep.join([f'{cm[j,k]:{fmt_cm}}' for j in range(X.size)]))
@@ -445,14 +557,14 @@ def save_Teq_report(
 
 	with open(filename, 'w') as fid:
 		fid.write(f'{labelname}{sep}{Xname}{sep}SE{sep}correl{sep*N}{Yname}{sep}SE{sep}correl{sep*N}p-value{sep}{Tname}{sep}SE{sep}correl')
-		Xnv = array_nv(X)
-		Xse = array_se(X)
+		Xnv = _unp.nominal_values(X)
+		Xse = _unp.std_devs(X)
 		Xcm = _np.array(_uc.correlation_matrix(X))
-		Ynv = array_nv(Y)
-		Yse = array_se(Y)
+		Ynv = _unp.nominal_values(Y)
+		Yse = _unp.std_devs(Y)
 		Ycm = _np.array(_uc.correlation_matrix(Y))
-		Tnv = array_nv(T)
-		Tse = array_se(T)
+		Tnv = _unp.nominal_values(T)
+		Tse = _unp.std_devs(T)
 		Tcm = _np.array(_uc.correlation_matrix(T))
 		for k in range(X.size):
 			fid.write(f'\n{labels[k]}{sep}{Xnv[k]:{fmt_Xnv}}{sep}{Xse[k]:{fmt_Xse}}{sep}')
@@ -475,24 +587,39 @@ if __name__ == '__main__':
 # 			fid.write(f'\n{"b"+str(k)},{coefs[k].n:.9e},{coefs[k].s:.9e},' + ','.join([f'{correl[j,k]:.9f}' for j in range(coefs.size)]))	
 
 	X = _np.array(_uc.correlated_values(
-		[.35, .50, .65, .2],
+		[.27, .50, .65, .33],
 		_np.diag([.005, .005, .005, .005])**2
 	))
 	Y = _np.array(_uc.correlated_values(
-		[.17, .21, .25, .25],
+		[.15, .21, .25, .25],
 		_np.diag([.015, .015, .015, .015])**2
 	))
-
 
 	Teq, p = nearest_Teq(X, Y)
 	save_Teq_report(X, Y, Teq, p, 'Teq_report.csv')
 	save_array(Teq[p >= 0.05], 'Teq', 'Teq.csv', fmt_nv = '.1f', fmt_se = '.1f')
 
+	slope = _uc.ufloat(-1, 0.1)
+	Tp = projected_Teq(X[p < 0.05], Y[p < 0.05], slope)
+	
 	plot_D95_equilibrium()
 	error_ellipses(
 		D47_calib_function(Teq[p > 0.05]),
 		D48_calib_function(Teq[p > 0.05]),
 	)
+	error_ellipses(
+		D47_calib_function(Tp),
+		D48_calib_function(Tp),
+		ec = 'k',
+	)
+	for x, y, t in zip(X[p < 0.05], Y[p < 0.05], Tp):
+		_ppl.plot(
+			[x.n, D47_calib_function(t).n],
+			[y.n, D48_calib_function(t).n],
+			'k--', lw = 0.7,
+		)
 	error_ellipses(X[p >= 0.05], Y[p >= 0.05], ec = 'g')
 	error_ellipses(X[p < 0.05], Y[p < 0.05], ec = 'r')
+# 	_ppl.axis('equal')
+	_ppl.savefig('example.pdf')
 	_ppl.show()
