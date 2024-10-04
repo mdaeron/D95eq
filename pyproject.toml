@@ -1,5 +1,5 @@
 [project]
-name = "D95thermometry"
+name = "D95thermo"
 description = "Estimate carbonate formation temperatures from dual clumped isotope measurements"
 readme = "readme.md"
 dynamic = ["version"]
