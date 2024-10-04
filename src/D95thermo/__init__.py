@@ -25,6 +25,21 @@ from scipy.linalg import cholesky as _cholesky
 from scipy.optimize import fsolve as _fsolve
 
 
+def smart_type(x):
+	'''
+	Tries to convert string `x` to a float if it includes a decimal point, or
+	to an integer if it does not. If both attempts fail, return the original
+	string unchanged.
+	'''
+	try:
+		y = float(x)
+	except ValueError:
+		return x
+	if '.' not in x:
+		return int(y)
+	return y
+
+
 _D47approx = _D47calib(
 	samples = _D47approx.samples,
 	T = _D47approx.T,
@@ -147,6 +162,33 @@ def _compute_D48_calib_coefficients():
 	
 	return _np.array([a0, a1, a2, a3, a4])
 
+def D4x_calib_function(
+	T,
+	coefs,
+	return_without_uncertainties = False,
+	ignore_calib_uncertainties = False,
+):
+	"""
+	If `return_without_uncertainties` is False, returns one or more ufloat values.
+	In that case, if T is a ufloat or an array of ufloats, the resulting D4x ufloat
+	values will account for this source of uncertainty, but if T is a float or an
+	array of floats, the D4x ufloat values will only account for uncertainties in
+	the calibration coefficients. If `return_without_uncertainties` is True, returns
+	the D4x values without error propagation of any kind.
+	"""
+	if ignore_calib_uncertainties:
+		coefs = _unp.nominal_values(coefs)
+	D4x = _np.sum(
+		[
+		coefs[k] / (T + 273.15)**k
+		for k in range(coefs.size)
+		],
+		axis = 0,
+	)
+	if return_without_uncertainties:
+		return _unp.nominal_values(D48)
+	return D4x
+
 # D47_calib_coefs from OGLS23 (D47calib v1.3.1)
 D47_calib_coefs = _np.array(_uc.correlated_values_norm(
 	[
@@ -176,18 +218,12 @@ def D47_calib_function(
 	the calibration coefficients. If `return_without_uncertainties` is True, returns
 	the D47 values without error propagation of any kind.
 	"""
-	if ignore_calib_uncertainties:
-		coefs = _unp.nominal_values(coefs)
-	D47 = _np.sum(
-		[
-		coefs[k] / (T + 273.15)**k
-		for k in range(coefs.size)
-		],
-		axis = 0,
+	return D4x_calib_function(
+		T = T,
+		coefs = coefs,
+		return_without_uncertainties = return_without_uncertainties,
+		ignore_calib_uncertainties = ignore_calib_uncertainties,
 	)
-	if return_without_uncertainties:
-		return _unp.nominal_values(D47)
-	return D47
 
 
 D48_calib_coefs = _np.array(_uc.correlated_values_norm(
@@ -222,18 +258,13 @@ def D48_calib_function(
 	the calibration coefficients. If `return_without_uncertainties` is True, returns
 	the D48 values without error propagation of any kind.
 	"""
-	if ignore_calib_uncertainties:
-		coefs = _unp.nominal_values(coefs)
-	D48 = _np.sum(
-		[
-		coefs[k] / (T + 273.15)**k
-		for k in range(coefs.size)
-		],
-		axis = 0,
+	return D4x_calib_function(
+		T = T,
+		coefs = coefs,
+		return_without_uncertainties = return_without_uncertainties,
+		ignore_calib_uncertainties = ignore_calib_uncertainties,
 	)
-	if return_without_uncertainties:
-		return _unp.nominal_values(D48)
-	return D48
+
 
 def plot_D95_equilibrium(
 	Tmin = 0,
@@ -502,6 +533,14 @@ def projected_Teq(
 	return T
 
 
+def T_ellipses(T, p = 0.95, ax = None, **kwargs):
+	return error_ellipses(
+		D47_calib_function(T),
+		D48_calib_function(T),
+		p = p,
+		ax = ax,
+		**kwargs,
+	)
 
 
 def save_array(
@@ -572,6 +611,52 @@ def save_Teq_report(
 				fid.write(sep.join([f'{Tcm[j,k]:{fmt_cm}}' for j in range(N)]))
 
 
+def read_data(data, sep = ','):
+	data = [[smart_type(e.strip()) for e in l.split(sep)] for l in data.split('\n')]
+	N = len(data) - 1
+	Ncol = _np.max([len(l) for l in data])
+
+	work = {}
+	for j in range(Ncol):
+		try:
+			cf = data[0][j]
+			if cf not in ['SE', 'correl', 'covar', '']:
+				work[cf] = _np.array([l[j] for l in data[1:]])
+				of = cf
+			elif cf == 'SE':
+				work[of+'_SE'] = _np.array([l[j] for l in data[1:]])
+			elif cf == 'correl':
+				work[of+'_correl'] = _np.array([l[j:j+N] for l in data[1:]])
+			elif cf == 'covar':
+				work[of+'_covar'] = _np.array([l[j:j+N] for l in data[1:]])
+		except IndexError:
+			pass
+
+	result = {}
+	for k in work:
+		if k.endswith('_SE') or k.endswith('_correl') or k.endswith('_covar'):
+			continue
+		if (k + '_covar') in work:
+			if (k + '_SE') in work:
+				raise KeyError(f'Too much information: both SE and covar are specified for variable "{k}".')
+			result[k] = _np.array(_uc.correlated_values(work[k], work[k+'_covar']))
+		elif (k + '_correl') in work:
+			if (k + '_SE') in work:
+				result[k] = _np.array(_uc.correlated_values_norm([*zip(work[k], work[k+'_SE'])], work[k+'_correl']))
+			else:
+				raise KeyError('Not enough information: Correl is specified without SE for variable "{k}".')
+		elif (k + '_SE') in work:
+			result[k] = _np.array(_uc.correlated_values_norm([*zip(work[k], work[k+'_SE'])], _np.eye(N)))
+		else:
+			result[k] = work[k]
+
+	return result
+
+
+def read_data_from_file(filename, sep = ','):
+	with open(filename) as fid:
+		return read_data(fid.read(), sep = sep)
+
 if __name__ == '__main__':
 
 # 	coefs = _compute_D48_calib_coefficients()
@@ -586,15 +671,10 @@ if __name__ == '__main__':
 	eq_color = (0,.5,.2)
 	diseq_color = (1, 0, .4)
 
-	X = _np.array(_uc.correlated_values(
-		[.25, .64, .38],
-		_np.diag([.005]*3)**2
-	))
-
-	Y = _np.array(_uc.correlated_values(
-		[.155, .26, .30],
-		_np.diag([.015]*3)**2
-	))
+	data = read_data_from_file('example_data.csv')
+	print(data)
+	X = data['X']
+	Y = data['Y']
 
 	Teq, p = nearest_Teq(X, Y)
 
@@ -605,21 +685,11 @@ if __name__ == '__main__':
 	
 	plot_D95_equilibrium()
 
-	error_ellipses(X[p >= p_cutoff], Y[p >= p_cutoff], ec = 'k')
-	error_ellipses(
-		D47_calib_function(Teq[p >= p_cutoff]),
-		D48_calib_function(Teq[p >= p_cutoff]),
-		ec = eq_color,
-		fc = (*eq_color, 0.2),
-	)
+	error_ellipses(X, Y, ec = 'k')
 
-	error_ellipses(X[p < p_cutoff], Y[p < p_cutoff], ec = 'k')
-	error_ellipses(
-		D47_calib_function(Tp),
-		D48_calib_function(Tp),
-		ec = diseq_color,
-		fc = (*diseq_color, 0.2),
-	)
+	T_ellipses(Teq[p >= p_cutoff], ec = eq_color, fc = (*eq_color, 0.2))
+	T_ellipses(Tp, ec = diseq_color, fc = (*diseq_color, 0.2))
+
 	for x, y, t in zip(X[p < p_cutoff], Y[p < p_cutoff], Tp):
 		v = _np.array([
 			D47_calib_function(t).n - x.n,
@@ -716,5 +786,4 @@ measurement uncertainties, $Δ_{47}$ and $Δ_{48}$ calibration uncertainties, an
 
 	_ppl.axis('equal')
 	_ppl.axis([0.15, 0.78, None, None])
-	_ppl.savefig('example.pdf')
-# 	_ppl.show()
+	_ppl.savefig('example_plot.pdf')
