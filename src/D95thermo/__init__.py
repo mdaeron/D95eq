@@ -672,7 +672,6 @@ if __name__ == '__main__':
 	diseq_color = (1, 0, .4)
 
 	data = read_data_from_file('example_data.csv')
-	print(data)
 	X = data['X']
 	Y = data['Y']
 
@@ -787,3 +786,4 @@ measurement uncertainties, $Δ_{47}$ and $Δ_{48}$ calibration uncertainties, an
 	_ppl.axis('equal')
 	_ppl.axis([0.15, 0.78, None, None])
 	_ppl.savefig('example_plot.pdf')
+	_ppl.savefig('example_plot.png', dpi = 150)
