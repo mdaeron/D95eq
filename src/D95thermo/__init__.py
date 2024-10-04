@@ -487,16 +487,8 @@ def projected_Teq(
 			)
 
 		def g(*args):
-			return _fsolve(fun, [25.], args = args)[0]
+			return _fsolve(fun, [100.], args = args)[0]
 		
-# 		T[k] = _uc.ufloat(g(
-# 			X[k].n,
-# 			Y[k].n,
-# 			slope.n,
-# 			*_unp.nominal_values(D47_calib_coefs),
-# 			*_unp.nominal_values(D48_calib_coefs),
-# 		), 0.)
-
 		wg = _uc.wrap(g)
 
 		T[k] = wg(
