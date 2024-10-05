@@ -611,44 +611,145 @@ def save_Teq_report(
 				fid.write(sep.join([f'{Tcm[j,k]:{fmt_cm}}' for j in range(N)]))
 
 
+# def read_data(data, sep = ','):
+# 	data = [[smart_type(e.strip()) for e in l.split(sep)] for l in data.split('\n')]
+# 	N = len(data) - 1
+# 	Ncol = _np.max([len(l) for l in data])
+# 
+# 	work = {}
+# 	for j in range(Ncol):
+# 		try:
+# 			cf = data[0][j]
+# 			if cf not in ['SE', 'correl', 'covar', '']:
+# 				work[cf] = _np.array([l[j] for l in data[1:]])
+# 				of = cf
+# 			elif cf == 'SE':
+# 				work[of+'_SE'] = _np.array([l[j] for l in data[1:]])
+# 			elif cf == 'correl':
+# 				work[of+'_correl'] = _np.array([l[j:j+N] for l in data[1:]])
+# 			elif cf == 'covar':
+# 				work[of+'_covar'] = _np.array([l[j:j+N] for l in data[1:]])
+# 		except IndexError:
+# 			pass
+# 
+# 	result = {}
+# 	for k in work:
+# 		if k.endswith('_SE') or k.endswith('_correl') or k.endswith('_covar'):
+# 			continue
+# 		if (k + '_covar') in work:
+# 			if (k + '_SE') in work:
+# 				raise KeyError(f'Too much information: both SE and covar are specified for variable "{k}".')
+# 			result[k] = _np.array(_uc.correlated_values(work[k], work[k+'_covar']))
+# 		elif (k + '_correl') in work:
+# 			if (k + '_SE') in work:
+# 				result[k] = _np.array(_uc.correlated_values_norm([*zip(work[k], work[k+'_SE'])], work[k+'_correl']))
+# 			else:
+# 				raise KeyError('Not enough information: Correl is specified without SE for variable "{k}".')
+# 		elif (k + '_SE') in work:
+# 			result[k] = _np.array(_uc.correlated_values_norm([*zip(work[k], work[k+'_SE'])], _np.eye(N)))
+# 		else:
+# 			result[k] = work[k]
+# 
+# 	return result
+
 def read_data(data, sep = ','):
 	data = [[smart_type(e.strip()) for e in l.split(sep)] for l in data.split('\n')]
 	N = len(data) - 1
-	Ncol = _np.max([len(l) for l in data])
 
-	work = {}
-	for j in range(Ncol):
-		try:
-			cf = data[0][j]
-			if cf not in ['SE', 'correl', 'covar', '']:
-				work[cf] = _np.array([l[j] for l in data[1:]])
-				of = cf
-			elif cf == 'SE':
-				work[of+'_SE'] = _np.array([l[j] for l in data[1:]])
-			elif cf == 'correl':
-				work[of+'_correl'] = _np.array([l[j:j+N] for l in data[1:]])
-			elif cf == 'covar':
-				work[of+'_covar'] = _np.array([l[j:j+N] for l in data[1:]])
-		except IndexError:
-			pass
+	values, se, correl, covar = {}, {}, {}, {}
+	j = 0
+	while j < len(data[0]):
+		field = data[0][j]
+		if not (
+			field.startswith('SE_')
+			or field.startswith('correl_')
+			or field.startswith('covar_')
+			or field == 'SE'
+			or field == 'correl'
+			or field == 'covar'
+			or len(field) == 0
+		):
+			values[field] = _np.array([l[j] for l in data[1:]])
+			j += 1
+			oldfield = field
+		elif field.startswith('SE_'):
+			se[field[3:]] = _np.array([l[j] for l in data[1:]])
+			j += 1
+		elif field == 'SE':
+			se[oldfield] = _np.array([l[j] for l in data[1:]])
+			j += 1
+		elif field == 'SE':
+			se[oldfield] = _np.array([l[j] for l in data[1:]])
+			j += N
+		elif field.startswith('correl_'):
+			correl[field[7:]] = _np.array([l[j:j+N] for l in data[1:]])
+			j += N
+		elif field == 'correl':
+			correl[oldfield] = _np.array([l[j:j+N] for l in data[1:]])
+			j += N
+		elif field.startswith('covar_'):
+			covar[field[6:]] = _np.array([l[j:j+N] for l in data[1:]])
+			j += N
+		elif field == 'covar':
+			covar[oldfield] = _np.array([l[j:j+N] for l in data[1:]])
+			j += N
 
-	result = {}
-	for k in work:
-		if k.endswith('_SE') or k.endswith('_correl') or k.endswith('_covar'):
-			continue
-		if (k + '_covar') in work:
-			if (k + '_SE') in work:
+	nakedvalues = {}
+	for k in [_ for _ in values]:
+		if (
+			k not in se
+			and k not in correl
+			and k not in covar
+		):
+			nakedvalues[k] = values.pop(k)
+
+	for k in covar:
+		if k in values:
+			if k in se:
 				raise KeyError(f'Too much information: both SE and covar are specified for variable "{k}".')
-			result[k] = _np.array(_uc.correlated_values(work[k], work[k+'_covar']))
-		elif (k + '_correl') in work:
-			if (k + '_SE') in work:
-				result[k] = _np.array(_uc.correlated_values_norm([*zip(work[k], work[k+'_SE'])], work[k+'_correl']))
-			else:
-				raise KeyError('Not enough information: Correl is specified without SE for variable "{k}".')
-		elif (k + '_SE') in work:
-			result[k] = _np.array(_uc.correlated_values_norm([*zip(work[k], work[k+'_SE'])], _np.eye(N)))
+
+	for k in correl:
+		if k in values:
+			if k not in se:
+				raise KeyError(f'Not enough information: correl is specified without SE for variable "{k}".')
+			if k in covar:
+				raise KeyError(f'Too much information: both correl and covar are specified for variable "{k}".')
+			covar[k] = _np.diag(se[k]) @ correl[k] @ _np.diag(se[k])
 		else:
-			result[k] = work[k]
+			for j1 in values:
+				for j2 in values:
+					if k == f'{j1}_{j2}':
+						covar[f'{j1}_{j2}'] = _np.diag(se[j1]) @ correl[k] @ _np.diag(se[j2])
+						covar[f'{j2}_{j1}'] = covar[f'{j1}_{j2}'].T
+
+	for k in se:
+		if k not in covar:
+			covar[k] = _np.diag(se[k]**2)
+
+	for k in [_ for _ in covar]:
+		if k not in values:
+			for j1 in values:
+				for j2 in values:
+					if k == f'{j1}_{j2}':
+						covar[f'{j2}_{j1}'] = covar[f'{j1}_{j2}'].T
+
+	X = _np.array([_ for k in values for _ in values[k]])
+	CM = _np.zeros((X.size, X.size))
+	for i, vi in enumerate(values):
+		for j, vj in enumerate(values):
+			if vi == vj:
+				if vi in covar:
+					CM[N*i:N*i+N,N*j:N*j+N] = covar[vi]
+			else:
+				if f'{vi}_{vj}' in covar:
+					CM[N*i:N*i+N,N*j:N*j+N] = covar[f'{vi}_{vj}']
+	
+	corvalues = _np.array(_uc.correlated_values(X, CM))
+
+	result = nakedvalues
+	
+	for i,k in enumerate(values):
+		result[k] = corvalues[i*N:i*N+N]
 
 	return result
 
