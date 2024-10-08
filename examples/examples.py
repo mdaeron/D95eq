@@ -5,7 +5,6 @@ import uncertainties as _uc
 from matplotlib import pyplot as _ppl
 from D95thermo import *
 
-print('FOOO..')
 
 slope = _uc.ufloat(-1, 0.1)
 p_cutoff = 0.05
