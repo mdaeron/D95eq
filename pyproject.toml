@@ -34,3 +34,7 @@ D95thermo = { path = ".", editable = true }
 [tool.pixi.tasks]
 examples = {cmd = 'python examples.py', cwd ='examples' }
 coefs    = {cmd = 'python calib_coefs.py', cwd ='calib_coefs' }
+docs     = {cmd = 'python ../build_doc.py', cwd ='src' }
+
+[tool.pixi.dependencies]
+pdoc = ">=14.4.0,<15"
