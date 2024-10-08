@@ -592,17 +592,4 @@ def save_Teq_report(
 
 
 if __name__ == '__main__':
-
-	import correldata as crld
-
-	coefs = D47_calib_coefs
-	data = {
-		'degree' : _np.array([k for k,v in enumerate(coefs)]),
-		'coef': crld._correl_array(coefs)}
-	crld.save_data_to_file(data, 'D47_calib_coefs.csv', max_correl_precision = 2)
-
-	coefs = _compute_D48_calib_coefficients()
-	data = {
-		'degree' : _np.array([k for k,v in enumerate(coefs)]),
-		'coef': crld._correl_array(coefs)}
-	crld.save_data_to_file(data, 'D48_calib_coefs.csv', max_correl_precision = 2)
+	pass

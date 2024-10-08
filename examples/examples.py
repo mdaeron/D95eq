@@ -12,8 +12,8 @@ eq_color = (0,.5,.2)
 diseq_color = (1, 0, .4)
 
 data = correldata.read_data_from_file('example_data.csv')
-X = data['X']
-Y = data['Y']
+X = data['D47']
+Y = data['D48']
 
 Teq, p = nearest_Teq(X, Y)
 
