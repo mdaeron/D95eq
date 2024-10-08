@@ -12,7 +12,7 @@ dependencies = [
     "numpy>=2.1.1",
     "ogls>=1.0",
     "uncertainties>=3.2.2",
-    "correldata>=1.0.0",
+    "correldata>=1.0.1",
 ]
 
 [project.urls]
@@ -33,3 +33,4 @@ D95thermo = { path = ".", editable = true }
 
 [tool.pixi.tasks]
 examples = {cmd = 'python examples.py', cwd ='examples' }
+coefs    = {cmd = 'python __init__.py', cwd ='src/D95thermo' }
