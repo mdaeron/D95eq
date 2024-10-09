@@ -162,12 +162,13 @@ def _compute_D48_calib_coefficients():
 	
 	return _np.array([a0, a1, a2, a3, a4])
 
+
 def D4x_calib_function(
-	T,
-	coefs,
-	return_without_uncertainties = False,
-	ignore_calib_uncertainties = False,
-):
+	T: (float | _np.ndarray),
+	coefs: _np.ndarray,
+	return_without_uncertainties: bool = False,
+	ignore_calib_uncertainties: bool = False,
+) -> _np.ndarray:
 	"""
 	If `return_without_uncertainties` is False, returns one or more ufloat values.
 	In that case, if T is a ufloat or an array of ufloats, the resulting D4x ufloat
@@ -176,18 +177,48 @@ def D4x_calib_function(
 	the calibration coefficients. If `return_without_uncertainties` is True, returns
 	the D4x values without error propagation of any kind.
 	"""
-	if ignore_calib_uncertainties:
-		coefs = _unp.nominal_values(coefs)
-	D4x = _np.sum(
-		[
-		coefs[k] / (T + 273.15)**k
-		for k in range(coefs.size)
-		],
-		axis = 0,
+	degs = _np.arange(coefs.size)
+
+	D4x = (
+		_np.expand_dims(coefs, 1)
+		* _np.expand_dims((T+273.15)**-1, 0)
+		** _np.expand_dims(degs, 1)
+	).sum(
+		axis = 0
+		if isinstance(T, _np.ndarray)
+		else None
 	)
+
 	if return_without_uncertainties:
-		return _unp.nominal_values(D48)
+		return _unp.nominal_values(D4x)
 	return D4x
+
+# def D4x_calib_function(
+# 	T,
+# 	coefs,
+# 	return_without_uncertainties = False,
+# 	ignore_calib_uncertainties = False,
+# ):
+# 	"""
+# 	If `return_without_uncertainties` is False, returns one or more ufloat values.
+# 	In that case, if T is a ufloat or an array of ufloats, the resulting D4x ufloat
+# 	values will account for this source of uncertainty, but if T is a float or an
+# 	array of floats, the D4x ufloat values will only account for uncertainties in
+# 	the calibration coefficients. If `return_without_uncertainties` is True, returns
+# 	the D4x values without error propagation of any kind.
+# 	"""
+# 	if ignore_calib_uncertainties:
+# 		coefs = _unp.nominal_values(coefs)
+# 	D4x = _np.sum(
+# 		[
+# 		coefs[k] / (T + 273.15)**k
+# 		for k in range(coefs.size)
+# 		],
+# 		axis = 0,
+# 	)
+# 	if return_without_uncertainties:
+# 		return _unp.nominal_values(D4x)
+# 	return D4x
 
 # D47_calib_coefs from OGLS23 (D47calib v1.3.1)
 D47_calib_coefs = _np.array(_uc.correlated_values_norm(
