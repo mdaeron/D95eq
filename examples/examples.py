@@ -1,4 +1,4 @@
-import correldata
+from correldata import read_data_from_file
 import numpy as _np
 import uncertainties as _uc
 
@@ -11,12 +11,11 @@ p_cutoff = 0.05
 eq_color = (0,.5,.2)
 diseq_color = (1, 0, .4)
 
-data = correldata.read_data_from_file('example_data.csv')
+data = read_data_from_file('example_data.csv')
 X = data['D47']
 Y = data['D48']
 
 Teq, p = nearest_Teq(X, Y)
-
 Tp = projected_Teq(X[p < p_cutoff], Y[p < p_cutoff], slope)
 
 fig = _ppl.figure(figsize = (6.5,4.5))

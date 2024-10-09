@@ -13,6 +13,7 @@ import numpy as _np
 import ogls as _ogls
 import uncertainties as _uc
 import lmfit as _lmfit
+import correldata as _cd
 
 from uncertainties import unumpy as _unp
 from D47calib import OGLS23 as _D47approx
@@ -193,32 +194,6 @@ def D4x_calib_function(
 		return _unp.nominal_values(D4x)
 	return D4x
 
-# def D4x_calib_function(
-# 	T,
-# 	coefs,
-# 	return_without_uncertainties = False,
-# 	ignore_calib_uncertainties = False,
-# ):
-# 	"""
-# 	If `return_without_uncertainties` is False, returns one or more ufloat values.
-# 	In that case, if T is a ufloat or an array of ufloats, the resulting D4x ufloat
-# 	values will account for this source of uncertainty, but if T is a float or an
-# 	array of floats, the D4x ufloat values will only account for uncertainties in
-# 	the calibration coefficients. If `return_without_uncertainties` is True, returns
-# 	the D4x values without error propagation of any kind.
-# 	"""
-# 	if ignore_calib_uncertainties:
-# 		coefs = _unp.nominal_values(coefs)
-# 	D4x = _np.sum(
-# 		[
-# 		coefs[k] / (T + 273.15)**k
-# 		for k in range(coefs.size)
-# 		],
-# 		axis = 0,
-# 	)
-# 	if return_without_uncertainties:
-# 		return _unp.nominal_values(D4x)
-# 	return D4x
 
 # D47_calib_coefs from OGLS23 (D47calib v1.3.1)
 D47_calib_coefs = _np.array(_uc.correlated_values_norm(
@@ -458,10 +433,10 @@ def nearest_Teq(
 	ignore_calib_uncertainties = False,
 ):
 	"""
-	Returns an array of T ufloats which are closest (in the least-squares sense)
-	to each (x, y) pair, along with an array of corresponding p-values taking into
-	account errors in X and Y (both of them being potentially covariant) and those
-	in the D47 and D48 calibrations.
+	Returns a `correldata.uarray` of T values which are closest (in the least-squares sense)
+	to each (Δ<sub>47</sub>, Δ<sub>48</sub>) pair, along with an array of corresponding
+	p-values taking into account errors in Δ<sub>47</sub> and Δ<sub>48</sub> (both of them
+	being potentially covariant) and those in the Δ<sub>47</sub> and Δ<sub>48</sub> calibrations.
 	"""
 
 	N = X.size
@@ -491,7 +466,7 @@ def nearest_Teq(
 	model = _lmfit.Minimizer(cost_fun, params, scale_covar = False)
 	minresult = model.minimize(method = 'least_squares')
 
-	Teq = _np.array(_uc.correlated_values(
+	Teq = _cd.uarray(_uc.correlated_values(
 			(minresult.params[f'T{k}'].value for k in range(N)),
 			minresult.covar,
 	))
@@ -528,7 +503,7 @@ def projected_Teq(
 	N = X.size
 	N47c = D47_calib_coefs.size
 	N48c = D48_calib_coefs.size
-	T = X * 0
+	T =  _cd.uarray(X * 0)
 	for k in range(N):
 
 		# function to solve
@@ -620,7 +595,3 @@ def save_Teq_report(
 			if p[k] >= p_cutoff:
 				fid.write(f'{sep}{Tnv[k]:{fmt_Tnv}}{sep}{Tse[k]:{fmt_Tse}}{sep}')
 				fid.write(sep.join([f'{Tcm[j,k]:{fmt_cm}}' for j in range(N)]))
-
-
-if __name__ == '__main__':
-	pass
