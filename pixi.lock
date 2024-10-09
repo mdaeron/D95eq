@@ -185,7 +185,7 @@ packages:
   name: d95thermo
   version: 0.9.0
   path: .
-  sha256: e1e477681943daeabad2814a84a9e028d3ef6d61ecda6b1efa18589b8ca36c7f
+  sha256: 4122fd6b794a41f2cd9a80c7e4c3f2a1173c6ca0871761266ffb76dd7e5f58d5
   requires_dist:
   - d47calib>=1.3.1
   - lmfit>=1.3.2
