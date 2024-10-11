@@ -470,6 +470,8 @@ def nearest_Teq(
 			(minresult.params[f'T{k}'].value for k in range(N)),
 			minresult.covar,
 	))
+	
+	Teq = _cd.uarray([minresult.uvars[f'T{k}'] for k in range(N)])
 
 	R = _np.concatenate((
 		X - D47_calib_function(_unp.nominal_values(Teq), return_without_uncertainties = ignore_calib_uncertainties),

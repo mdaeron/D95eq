@@ -12,7 +12,7 @@ dependencies = [
     "numpy>=2.1.1",
     "ogls>=1.0",
     "uncertainties>=3.2.2",
-    "correldata>=1.1.0",
+    "correldata>=1.2.0",
 ]
 
 [project.urls]

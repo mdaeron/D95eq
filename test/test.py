@@ -135,9 +135,17 @@ _ppl.savefig('test_plot.pdf')
 output = {}
 output['Sample'] = data['Sample']
 output['p_eq'] = p
-output['Teq'] = Teq
-output['Tkp'] = Tp
+output['Teq'] = correldata.uarray(Teq)
+output['Tkp'] = correldata.uarray(Tp)
 
-correldata.save_data_to_file(output, 'output.csv', atol = 1e-4, rtol = 1e-4, float_fmt = 'z.2f', max_correl_precision = 4)
+kwargs = dict(
+	float_format = {
+		'p_eq': 'z.3e',
+		'Teq': 'z.2f',
+		'Tkp': 'z.2f',
+		},
+	correl_format = 'z.6f',
+)
 
-# print(_uc.correlation_matrix([*Teq, *Tp])[:5,5:])
+print(correldata.data_string(output, **kwargs))
+correldata.save_data_to_file(output, 'output.csv', **kwargs)

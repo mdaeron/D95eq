@@ -30,7 +30,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/0a/0d/2c6aaab67ac566d76322e87827d707214c5f6ffb5a4fcd456a8633da1788/asteval-1.0.5-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/2e/d53fa4befbf2cfa713304affc7ca780ce4fc1fd8710527771b58311a3229/click-8.1.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e3/04/33351c5d5108460a8ce6d512307690b023f0cfcad5899499f5c83b9d63b1/contourpy-1.3.0-cp312-cp312-macosx_11_0_arm64.whl
-      - pypi: https://files.pythonhosted.org/packages/14/70/ab78e49858c0e8387c66fbb8db94a2453e43ec383059dd3b73505ed0483a/correldata-1.1.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/a7/4a/fbd354b0c5b174efd3ecc9e3ba664f4853b73ceb03b7eab2ce2e0aac186b/correldata-1.2.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e7/05/c19819d5e3d95294a6f5947fb9b9629efb316b96de511b418c53d245aae6/cycler-0.12.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b6/a5/3adcb0ff2a683a4220f5d9748db3b2a6c364c8efc8bdde550da6b7d870a3/d47calib-1.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/46/d1/e73b6ad76f0b1fb7f23c35c6d95dbc506a9c8804f43dda8cb5b0fa6331fd/dill-0.3.9-py3-none-any.whl
@@ -150,9 +150,9 @@ packages:
   requires_python: '>=3.9'
 - kind: pypi
   name: correldata
-  version: 1.1.0
-  url: https://files.pythonhosted.org/packages/14/70/ab78e49858c0e8387c66fbb8db94a2453e43ec383059dd3b73505ed0483a/correldata-1.1.0-py3-none-any.whl
-  sha256: 90941adad03bffccdde4d9e4dddb1b797f5588d34f8f96c2c338055023c8782c
+  version: 1.2.0
+  url: https://files.pythonhosted.org/packages/a7/4a/fbd354b0c5b174efd3ecc9e3ba664f4853b73ceb03b7eab2ce2e0aac186b/correldata-1.2.0-py3-none-any.whl
+  sha256: 0ebf35efd4e81b211054fe42f317f184d031543f16a1544f08f2d1eee73034a5
   requires_dist:
   - numpy>=2.1.1
   - uncertainties>=3.2.2
@@ -185,14 +185,14 @@ packages:
   name: d95thermo
   version: 0.9.0
   path: .
-  sha256: e2fadd1b3c84f8ad828a9338f106e3288459eabf5dd88ebfc6b9c4dd6c0708a6
+  sha256: 4686f813bc81e5ac7c0f595caad41e89cf0778893fd953ad90313a9e16c59c4c
   requires_dist:
   - d47calib>=1.3.1
   - lmfit>=1.3.2
   - numpy>=2.1.1
   - ogls>=1.0
   - uncertainties>=3.2.2
-  - correldata>=1.1.0
+  - correldata>=1.2.0
   requires_python: '>=3.11'
   editable: true
 - kind: pypi
