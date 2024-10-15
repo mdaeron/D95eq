@@ -288,8 +288,6 @@ def plot_D95_equilibrium(
 	kwargs_Tmarker_labels: dict = {},
 	show_Tmarker_ellipses: bool = False,
 	kwargs_Tmarker_ellipses: dict = {},
-	show_Tmarker_errorbars: bool = False,
-	kwargs_Tmarker_errorbars: dict = {},
 	show_eqline: bool = True,
 	kwargs_eqline: dict = {},
 	show_D47ci: bool = True,
@@ -302,6 +300,49 @@ def plot_D95_equilibrium(
 	ylabel: str = '$Δ_{48}$   [‰]',
 	lw: float = 0.7,
 ) -> (dict, dict):
+	"""
+	Plot a thermodynamic equilibrium curve in (Δ<sub>47</sub>, Δ<sub>48</sub>) space
+	as a function of temperature.
+	
+	**Arguments**
+	* `Tmin`: minimum T to plot
+	* `Tmax`: maximum T to plot 
+	* `NT`: number of steps in equilibrium curve (interpolated at constant steps in 1/T<sup>2</sup> space)
+	* `Tmarkers`: T markers to add along the curve
+	* `kwargs_Tmarkers`: passed to `plot()` when plotting T markers
+	* `show_Tmarker_labels`: whether to add T labels to T markers
+	* `kwargs_Tmarker_labels`: passed to `text()` when plotting T markers
+	* `show_Tmarker_ellipses`: whether to add confidence ellipses to T markers
+	* `kwargs_Tmarker_ellipses`: passed to `T_ellipses()` when plotting T marker ellipses
+	* `show_eqline`: whether to plot the equilibrium curve itself
+	* `kwargs_eqline`: passed to `plot()` when plotting the equilibrium curve
+	* `show_D47ci`: whether to plot the Δ<sub>47</sub> confidence band of the equilibrium curve
+	* `kwargs_D47ci`: passed to `fill_betweenx()` when plotting the Δ<sub>47</sub> confidence band
+	* `show_D48ci`: whether to plot the Δ<sub>48</sub> confidence band of the equilibrium curve
+	* `kwargs_D48ci`: passed to `fill_betweenx()` when plotting the Δ<sub>48</sub> confidence band
+	* `ci_pvalue`: confidence level for the Δ<sub>47</sub> and Δ<sub>48</sub> confidence band
+	* `ax`: which instance of `matplotlib.axes.Axes` to draw in; use current axes if `ax` = `None`.
+	* `xlabel`: string to pass to `xlabel()`
+	* `ylabel`: string to pass to `ylabel()`
+	* `lw`: default line width for most plot elements
+	
+	**Returns**
+	* `data`: a dict of the T, Δ<sub>47</sub> and Δ<sub>48</sub> values generated for this plot:
+		- `Te`  : temperature interpolated along the equilibrium curve
+		- `D47e`: Δ<sub>47</sub> interpolated along the equilibrium curve
+		- `D48e`: Δ<sub>48</sub> interpolated along the equilibrium curve
+		- `Tm`  : temperature of T markers
+		- `D47m`: Δ<sub>47</sub> of T markers
+		- `D48m`: Δ<sub>48</sub> of T markers
+
+	* `plot_elements`: a dict of the `Axes` elements generated for this plot:
+		- `eqline`: `Line2D` of the equilibrium curve
+		- `D47ci`: `PolyCollection` of the Δ<sub>47</sub> confidence band
+		- `D48ci`: `PolyCollection` of the Δ<sub>48</sub> confidence band
+		- `Tm`: `Line2D` of the T markers
+		- `Tme`: list of `Ellipse` objects for the T marker ellipses
+		- `Tml`: list of `Text` objects for the T marker labels
+	"""
 	
 	default_kwargs_eqline = dict(
 		marker = 'None',
@@ -417,15 +458,15 @@ def plot_D95_equilibrium(
 					)
 				)
 
-	ax.autoscale_view()		
-
+	ax.autoscale_view()
+	
 	data = dict(
-		Ti = Ti,
-		Xe = Xe,
-		Ye = Ye,
+		Te = Ti,
+		D47e = Xe,
+		D48e = Ye,
 		Tm = Tmarkers,
-		Xm = Xm,
-		Ym = Ym,
+		D47m = Xm,
+		D48m = Ym,
 	)
 	
 	return data, plot_elements
