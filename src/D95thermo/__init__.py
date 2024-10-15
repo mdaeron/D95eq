@@ -6,7 +6,7 @@ __author__    = 'Mathieu Daëron'
 __contact__   = 'mathieu@daeron.fr'
 __copyright__ = 'Copyright (c) 2024 Mathieu Daëron'
 __license__   = 'MIT License - https://opensource.org/licenses/MIT'
-__date__      = '2024-10-08'
+__date__      = '2024-10-15'
 __version__   = '0.9.0'
 
 import numpy as _np
@@ -16,8 +16,6 @@ import lmfit as _lmfit
 import correldata as _cd
 
 from uncertainties import unumpy as _unp
-from D47calib import OGLS23 as _D47approx
-from D47calib import D47calib as _D47calib
 from matplotlib import pyplot as _ppl
 from matplotlib.patches import Ellipse as _Ellipse
 from scipy.stats import chi2 as _chi2
@@ -26,38 +24,186 @@ from scipy.linalg import cholesky as _cholesky
 from scipy.optimize import fsolve as _fsolve
 
 
-def smart_type(x):
-	'''
-	Tries to convert string `x` to a float if it includes a decimal point, or
-	to an integer if it does not. If both attempts fail, return the original
-	string unchanged.
-	'''
-	try:
-		y = float(x)
-	except ValueError:
-		return x
-	if '.' not in x:
-		return int(y)
-	return y
+#### Utility variables and functions ####
+
+_D47_approx_calib_coefs = _np.array([0.159502986, 38588.1545]) # computed from code in comments below
+
+# from D47calib import OGLS23 as _OGLS23
+# from D47calib import D47calib as _D47calib
+# 
+# _D47_approx = _D47calib(
+# 	samples = _OGLS23.samples,
+# 	T = _OGLS23.T,
+# 	sT = _OGLS23.sT,
+# 	D47 = _OGLS23.D47,
+# 	sD47 = _OGLS23.sD47,
+# 	degrees = [0,2],
+# )
+# 
+# _D47_approx_calib_coefs = _np.array([_D47_approx.bfp['a0'], _D47_approx.bfp['a2']])
 
 
-_D47approx = _D47calib(
-	samples = _D47approx.samples,
-	T = _D47approx.T,
-	sT = _D47approx.sT,
-	D47 = _D47approx.D47,
-	sD47 = _D47approx.sD47,
-	degrees = [0,2],
-)
-_D47approx.regress()
+def _compute_D48_calib_coefficients():
+	"""
+	Based on Fiebig et al. (2021)
+	"""
+
+
+	datastr = '''
+	   Sample,   D48, SE_D48,      T, SE_T, correl_T
+	    LGB-2, 0.260, 0.0115,    7.9,  0.2, 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.
+	    DVH-2, 0.246, 0.0115,   33.7,  0.2, 0., 1., 1., 0., 0., 0., 0., 0., 0., 0., 0.
+	   DHC2-8, 0.237, 0.0075,   33.7,  0.2, 0., 1., 1., 0., 0., 0., 0., 0., 0., 0., 0.
+	    CA120, 0.174, 0.0175,   120.,   2., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0.
+	    CA170, 0.168, 0.0155,   170.,   2., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0.
+	    CA200, 0.171, 0.0145,   200.,   2., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0.
+	   CA250A, 0.148, 0.0155,   250.,   2., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0.
+	   CA250B, 0.141, 0.0145,   250.,   2., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0.
+	    CM351, 0.120, 0.0085, 726.85,  10., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0.
+	ETH1-1100, 0.118, 0.0110,  1100.,  10., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0.
+	ETH2-1100, 0.123, 0.0110,  1100.,  10., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1.
+	'''[1:-2]
+
+	data = _cd.read_data(datastr)
+	T, D48 = data['T'], data['D48']
+
+	# D64 predictions with covariance
+	a1 =  6.002
+	a2 = -1.299e4
+	a3 =  8.996e6
+	a4 = -7.423e8
+	
+	D64_predicted = (
+		a1 / (273.15 + T)
+		+ a2 / (273.15 + T)**2
+		+ a3 / (273.15 + T)**3
+		+ a4 / (273.15 + T)**4
+	)
+
+	# affine regression of the form D48 = b0 + b1 * D64_theory
+	R = _ogls.Polynomial(
+		X = D64_predicted.n,
+		sX = D64_predicted.covar,
+		Y = D48.n,
+		sY = D48.covar,
+		degrees = [0,1],
+	)
+	R.regress()
+	
+	b0, b1 = _uc.correlated_values(R.bfp.values(), R.bfp_CM)
+	
+	a0 = b0
+	a1 *= b1
+	a2 *= b1
+	a3 *= b1
+	a4 *= b1
+	
+	return _cd.uarray([a0, a1, a2, a3, a4])
+
+
+#### Calibration variables and functions ####
+
+def D4x_calib_function(
+	T: (float | _uc.UFloat | _cd.uarray),
+	coefs: _cd.uarray,
+	return_without_uncertainties: bool = False,
+	ignore_calib_uncertainties: bool = False,
+) -> _np.ndarray:
+	"""
+	If `return_without_uncertainties` is False, returns one or more ufloat values.
+	In that case, if T is a ufloat or an array of ufloats, the resulting D4x ufloat
+	values will account for this source of uncertainty, but if T is a float or an
+	array of floats, the D4x ufloat values will only account for uncertainties in
+	the calibration coefficients. If `return_without_uncertainties` is True, returns
+	the D4x values without error propagation of any kind.
+	"""
+	degs = _np.arange(coefs.size)
+	
+	D4x = (
+		_np.expand_dims(coefs.n if ignore_calib_uncertainties else coefs, 1)
+		* _np.expand_dims((T+273.15)**-1, 0)
+		** _np.expand_dims(degs, 1)
+	).sum(
+		axis = 0
+		if isinstance(T, _np.ndarray)
+		else None
+	)
+
+	return D4x.n if return_without_uncertainties else D4x
+
+
+# D47_calib_coefs from OGLS23 (D47calib v1.3.1)
+D47_calib_coefs = _cd.read_data('''
+              coefs,                     SE,        correl,
+0.17437754366432887,   4.911105567257293e-3,    1.        , -0.93797005,  0.8865771
+ -18.14215245127414,      5.632326472234856,   -0.93797005,  1.        , -0.98994249
+42.65722989162373e3,     1.27712751715908e3,    0.8865771 , -0.98994249,  1.
+'''[1:-1])['coefs']
+
+
+def D47_calib_function(
+	T: (float | _uc.UFloat | _cd.uarray),
+	coefs: _cd.uarray = D47_calib_coefs,
+	return_without_uncertainties: bool = False,
+	ignore_calib_uncertainties: bool = False,
+):
+	"""
+	If `return_without_uncertainties` is False, returns one or more ufloat values.
+	In that case, if T is a ufloat or an array of ufloats, the resulting D47 ufloat
+	values will account for this source of uncertainty, but if T is a float or an
+	array of floats, the D47 ufloat values will only account for uncertainties in
+	the calibration coefficients. If `return_without_uncertainties` is True, returns
+	the D47 values without error propagation of any kind.
+	"""
+	return D4x_calib_function(
+		T = T,
+		coefs = coefs,
+		return_without_uncertainties = return_without_uncertainties,
+		ignore_calib_uncertainties = ignore_calib_uncertainties,
+	)
+
+
+D48_calib_coefs = _cd.read_data('''
+         coefs,              SE,        correl,
+1.244445077e-1,  4.830177847e-3,   1.         , -0.701167327,  0.701167327, -0.701167327,  0.701167327
+   6.166790011,  3.866500673e-1,  -0.701167327,  1.         , -1.         ,  1.         , -1.         
+-1.334665149e4,   8.368184562e2,   0.701167327, -1.         ,  1.         , -1.         ,  1.         
+ 9.242992826e6,   5.795241595e5,  -0.701167327,  1.         , -1.         ,  1.         , -1.         
+-7.626804774e8,   4.781911778e7,   0.701167327, -1.         ,  1.         , -1.         ,  1.         
+'''[1:-1], validate_covar = False)['coefs'] # computed from _compute_D48_calib_coefficients()
+
+
+def D48_calib_function(
+	T: (float | _uc.UFloat | _cd.uarray),
+	coefs: _cd.uarray = D48_calib_coefs,
+	return_without_uncertainties: bool = False,
+	ignore_calib_uncertainties: bool = False,
+):
+	"""
+	If `return_without_uncertainties` is False, returns one or more ufloat values.
+	In that case, if T is a ufloat or an array of ufloats, the resulting D48 ufloat
+	values will account for this source of uncertainty, but if T is a float or an
+	array of floats, the D48 ufloat values will only account for uncertainties in
+	the calibration coefficients. If `return_without_uncertainties` is True, returns
+	the D48 values without error propagation of any kind.
+	"""
+	return D4x_calib_function(
+		T = T,
+		coefs = coefs,
+		return_without_uncertainties = return_without_uncertainties,
+		ignore_calib_uncertainties = ignore_calib_uncertainties,
+	)
+
+
+#### Plotting functions ####
 
 def error_ellipses(
-	X,
-	Y,
-	p = 0.95,
-	ax = None,
+	X: _cd.uarray,
+	Y: _cd.uarray,
+	p: float = 0.95,
+	ax: (_ppl.Axes | None) = None,
 	**kwargs,
-):
+) -> list:
 
 	kwargs = dict(fc = 'None', ec = 'k', lw = 0.7) | kwargs
 
@@ -86,216 +232,46 @@ def error_ellipses(
 		)
 	return out
 
-		
 
-def _compute_D48_calib_coefficients():
-	"""
-	Based on Fiebig et al. (2021)
-	"""
-
-
-	data = '''
-	Sample	T	T_SE	D48	D48_2SE
-	LGB-2	7.9	0.2	0.260	0.023
-	DVH-2	33.7	0.2	0.246	0.023
-	DHC2-8	33.7	0.2	0.237	0.015
-	CA120	120	2	0.174	0.035
-	CA170	170	2	0.168	0.031
-	CA200	200	2	0.171	0.029
-	CA250A	250	2	0.148	0.031
-	CA250B	250	2	0.141	0.029
-	CM351	726.85	10	0.120	0.017
-	ETH1-1100	1100	10	0.118	0.022
-	ETH2-1100	1100	10	0.123	0.022
-	'''.split('\n')[2:-1]
-
-	data = [l.split('\t') for l in data]
-	data = [{
-		'Sample': l[1],
-		'T': float(l[2]),
-		'sT': float(l[3]),
-		'D48': float(l[4]),
-		'sD48': float(l[5])/2,
-	} for l in data]
-	
-	# specify D48 values with covariance
-	D48 = _np.array(_uc.correlated_values(
-		[l['D48'] for l in data],
-		_np.diag([l['sD48']**2 for l in data])
-	))
-
-	# specify T values with covariance
-	CM_T = _np.diag([l['sT']**2 for l in data])
-	CM_T[1,2] = CM_T[1,1]
-	CM_T[2,1] = CM_T[1,1]
-	T = _np.array(_uc.correlated_values([l['T'] for l in data], CM_T))
-	
-	# D64 predictions with covariance
-	a1 =  6.002
-	a2 = -1.299e4
-	a3 =  8.996e6
-	a4 = -7.423e8
-	
-	D64_theory = (
-		a1 / (273.15 + T)
-		+ a2 / (273.15 + T)**2
-		+ a3 / (273.15 + T)**3
-		+ a4 / (273.15 + T)**4
-	)
-
-	# affine regression of the form D48 = b0 + b1 * D64_theory
-	R = _ogls.Polynomial(
-		X = [_.n for _ in D64_theory],
-		sX = _np.array(_uc.covariance_matrix(D64_theory)),
-		Y = [_.n for _ in D48],
-		sY = _np.array(_uc.covariance_matrix(D48)),
-		degrees = [0,1],
-	)
-	R.regress()
-	
-	b0, b1 = _uc.correlated_values(R.bfp.values(), R.bfp_CM)
-	
-	a0 = b0
-	a1 *= b1
-	a2 *= b1
-	a3 *= b1
-	a4 *= b1
-	
-	return _np.array([a0, a1, a2, a3, a4])
-
-
-def D4x_calib_function(
-	T: (float | _np.ndarray),
-	coefs: _np.ndarray,
-	return_without_uncertainties: bool = False,
-	ignore_calib_uncertainties: bool = False,
-) -> _np.ndarray:
-	"""
-	If `return_without_uncertainties` is False, returns one or more ufloat values.
-	In that case, if T is a ufloat or an array of ufloats, the resulting D4x ufloat
-	values will account for this source of uncertainty, but if T is a float or an
-	array of floats, the D4x ufloat values will only account for uncertainties in
-	the calibration coefficients. If `return_without_uncertainties` is True, returns
-	the D4x values without error propagation of any kind.
-	"""
-	degs = _np.arange(coefs.size)
-
-	D4x = (
-		_np.expand_dims(coefs, 1)
-		* _np.expand_dims((T+273.15)**-1, 0)
-		** _np.expand_dims(degs, 1)
-	).sum(
-		axis = 0
-		if isinstance(T, _np.ndarray)
-		else None
-	)
-
-	if return_without_uncertainties:
-		return _unp.nominal_values(D4x)
-	return D4x
-
-
-# D47_calib_coefs from OGLS23 (D47calib v1.3.1)
-D47_calib_coefs = _np.array(_uc.correlated_values_norm(
-	[
-		(0.17437754366432887, 4.911105567257293e-3),
-		( -18.14215245127414,    5.632326472234856),
-		(42.65722989162373e3,   1.27712751715908e3),
-	],
-	[
-		[ 1.        , -0.93797005,  0.8865771 ],
-		[-0.93797005,  1.        , -0.98994249],
-		[ 0.8865771 , -0.98994249,  1.        ],
-	]
-))
-
-
-def D47_calib_function(
-	T,
-	coefs = D47_calib_coefs,
-	return_without_uncertainties = False,
-	ignore_calib_uncertainties = False,
-):
-	"""
-	If `return_without_uncertainties` is False, returns one or more ufloat values.
-	In that case, if T is a ufloat or an array of ufloats, the resulting D47 ufloat
-	values will account for this source of uncertainty, but if T is a float or an
-	array of floats, the D47 ufloat values will only account for uncertainties in
-	the calibration coefficients. If `return_without_uncertainties` is True, returns
-	the D47 values without error propagation of any kind.
-	"""
-	return D4x_calib_function(
-		T = T,
-		coefs = coefs,
-		return_without_uncertainties = return_without_uncertainties,
-		ignore_calib_uncertainties = ignore_calib_uncertainties,
-	)
-
-
-D48_calib_coefs = _np.array(_uc.correlated_values_norm(
-	[
-		(1.244445077e-1, 4.830177847e-3),
-		(   6.166790011, 3.866500673e-1),
-		(-1.334665149e4, 8.368184562e2),
-		( 9.242992826e6, 5.795241595e5),
-		(-7.626804774e8, 4.781911778e7),
-	],
-	[
-		[ 1.         , -0.701167327,  0.701167327, -0.701167327,  0.701167327],
-		[-0.701167327,  1.         , -1.         ,  1.         , -1.         ],
-		[ 0.701167327, -1.         ,  1.         , -1.         ,  1.         ],
-		[-0.701167327,  1.         , -1.         ,  1.         , -1.         ],
-		[ 0.701167327, -1.         ,  1.         , -1.         ,  1.         ],
-	]
-))
-
-
-def D48_calib_function(
-	T,
-	coefs = D48_calib_coefs,
-	return_without_uncertainties = False,
-	ignore_calib_uncertainties = False,
-):
-	"""
-	If `return_without_uncertainties` is False, returns one or more ufloat values.
-	In that case, if T is a ufloat or an array of ufloats, the resulting D48 ufloat
-	values will account for this source of uncertainty, but if T is a float or an
-	array of floats, the D48 ufloat values will only account for uncertainties in
-	the calibration coefficients. If `return_without_uncertainties` is True, returns
-	the D48 values without error propagation of any kind.
-	"""
-	return D4x_calib_function(
-		T = T,
-		coefs = coefs,
-		return_without_uncertainties = return_without_uncertainties,
-		ignore_calib_uncertainties = ignore_calib_uncertainties,
+def T_ellipses(
+	T: _cd.uarray,
+	p: float = 0.95,
+	ax: (_ppl.Axes | None) = None,
+	**kwargs,
+) -> list:
+	return error_ellipses(
+		D47_calib_function(T),
+		D48_calib_function(T),
+		p = p,
+		ax = ax,
+		**kwargs,
 	)
 
 
 def plot_D95_equilibrium(
-	Tmin = 0,
-	Tmax = 1000,
-	NT = 101,
-	Tmarkers = [0, 25, 100, 250, 1000],
-	kwargs_Tmarkers = {},
-	show_Tmarker_labels = True,
-	kwargs_Tmarker_labels = {},
-	show_Tmarker_ellipses = False,
-	kwargs_Tmarker_ellipses = {},
-	show_Tmarker_errorbars = False,
-	kwargs_Tmarker_errorbars = {},
-	show_eqline = True,
-	kwargs_eqline = {},
-	show_D47ci = True,
-	kwargs_D47ci = {},
-	show_D48ci = True,
-	kwargs_D48ci = {},
-	ci_pvalue = 0.95,
-	ax = None,
-	xlabel = '$Δ_{47}$   [‰]',
-	ylabel = '$Δ_{48}$   [‰]',
-	lw = 0.7,
-):
+	Tmin: float = 0.,
+	Tmax: float = 1000.,
+	NT: int = 101,
+	Tmarkers: _np.typing.ArrayLike = [0, 25, 100, 250, 1000],
+	kwargs_Tmarkers: dict = {},
+	show_Tmarker_labels: bool = True,
+	kwargs_Tmarker_labels: dict = {},
+	show_Tmarker_ellipses: bool = False,
+	kwargs_Tmarker_ellipses: dict = {},
+	show_Tmarker_errorbars: bool = False,
+	kwargs_Tmarker_errorbars: dict = {},
+	show_eqline: bool = True,
+	kwargs_eqline: dict = {},
+	show_D47ci: bool = True,
+	kwargs_D47ci: dict = {},
+	show_D48ci: bool = True,
+	kwargs_D48ci: dict = {},
+	ci_pvalue: float = 0.95,
+	ax: (_ppl.Axes | None) = None,
+	xlabel: str = '$Δ_{47}$   [‰]',
+	ylabel: str = '$Δ_{48}$   [‰]',
+	lw: float = 0.7,
+) -> (dict, dict):
 	
 	default_kwargs_eqline = dict(
 		marker = 'None',
@@ -425,91 +401,164 @@ def plot_D95_equilibrium(
 	return data, plot_elements
 
 
-def nearest_Teq(
-	X,
-	Y,
+#### Temperature estimates ####
+
+def lazy_nearest_Teq(
+	D47: _cd.uarray,
+	D48: _cd.uarray,
 	D47_calib_function = D47_calib_function,
 	D48_calib_function = D48_calib_function,
-	ignore_calib_uncertainties = False,
+	ignore_calib_uncertainties: bool = False,
 ):
 	"""
 	Returns a `correldata.uarray` of T values which are closest (in the least-squares sense)
 	to each (Δ<sub>47</sub>, Δ<sub>48</sub>) pair, along with an array of corresponding
 	p-values taking into account errors in Δ<sub>47</sub> and Δ<sub>48</sub> (both of them
 	being potentially covariant) and those in the Δ<sub>47</sub> and Δ<sub>48</sub> calibrations.
+	
+	This is the "lazy", faster version of this calculation, which returns an `uarray` with reasonably
+	accurate covariance between the `Teq` values, but without computoing the covariance with
+	any other variables. As a matter of fact, these `Teq` values are strongly correlated with
+	the corresponding values of `D47`, but in order to compute those one should use `nearest_Teq()`
+	instead of "lazy_nearest_Teq()".
 	"""
 
-	N = X.size
-	_X = _unp.nominal_values(X)
+	N = D47.size
 
 	params = _lmfit.Parameters()
+	a0, a2 = _D47_approx_calib_coefs
 	for k in range(N):
-		params.add(
-			f'T{k}',
-			value = ((_X[k] - _D47approx.bfp['a0']) / _D47approx.bfp['a2'])**-.5 - 273.15,
-		)
+		params.add(f'T{k}', value = ((D47[k].n - a0) / a2)**-.5 - 273.15)
 	
 	def cost_fun(
 		p,
 		ignore_calib_uncertainties = ignore_calib_uncertainties,
 	):
 		T = _np.array([p[f'T{k}'] for k in range(N)])
-		R = _np.concatenate((
-			X - D47_calib_function(T, ignore_calib_uncertainties = ignore_calib_uncertainties),
-			Y - D48_calib_function(T, ignore_calib_uncertainties = ignore_calib_uncertainties),
-		))
-		CMr = _np.array(_uc.covariance_matrix(R))
-		invS = _np.linalg.solve(CMr, _np.eye(2*N))
+		R = _cd.uarray(_np.concatenate((
+			D47 - D47_calib_function(T, ignore_calib_uncertainties = ignore_calib_uncertainties),
+			D48 - D48_calib_function(T, ignore_calib_uncertainties = ignore_calib_uncertainties),
+		)))
+		
+		invS = _np.linalg.inv(R.covar)
 		L = _cholesky(invS)
-		return L @ _unp.nominal_values(R)
+		return L @ R.n
 	
-	model = _lmfit.Minimizer(cost_fun, params, scale_covar = False)
-	minresult = model.minimize(method = 'least_squares')
+	minresult = _lmfit.minimize(cost_fun, params, method = 'least_squares', scale_covar = False)
 
-	Teq = _cd.uarray(_uc.correlated_values(
-			(minresult.params[f'T{k}'].value for k in range(N)),
-			minresult.covar,
-	))
-	
 	Teq = _cd.uarray([minresult.uvars[f'T{k}'] for k in range(N)])
 
-	R = _np.concatenate((
-		X - D47_calib_function(_unp.nominal_values(Teq), return_without_uncertainties = ignore_calib_uncertainties),
-		Y - D48_calib_function(_unp.nominal_values(Teq), return_without_uncertainties = ignore_calib_uncertainties),
-	))
-	CMr = _np.array(_uc.covariance_matrix(R))
+	R = _cd.uarray(_np.concatenate((
+		D47 - D47_calib_function(Teq.n, ignore_calib_uncertainties = ignore_calib_uncertainties),
+		D48 - D48_calib_function(Teq.n, ignore_calib_uncertainties = ignore_calib_uncertainties),
+	)))
 	
 	p = _np.zeros((N,))
 	for k in range(N):
-		r = _unp.nominal_values(R[k::N])
-		cm = CMr[k::N,:][:,k::N]
-		invS = _np.linalg.solve(cm, _np.eye(2))
-		z = r.T @ invS @ r
-		p[k] = 1-_chi2.cdf(z, 2)
+		r = R[k::N]
+		z2 = r.m
+		p[k] = 1-_chi2.cdf(z2, 2)
 
+	return Teq, p
+
+def nearest_Teq(
+	D47: _cd.uarray,
+	D48: _cd.uarray,
+	D47_calib_coefs: _cd.uarray = D47_calib_coefs,
+	D48_calib_coefs: _cd.uarray = D48_calib_coefs,
+	ignore_calib_uncertainties: bool = False,
+):
+	"""
+	Returns a `correldata.uarray` of T values which are closest (in the least-squares sense)
+	to each (Δ<sub>47</sub>, Δ<sub>48</sub>) pair, along with an array of corresponding
+	p-values taking into account errors in Δ<sub>47</sub> and Δ<sub>48</sub> (both of them
+	being potentially covariant) and those in the Δ<sub>47</sub> and Δ<sub>48</sub> calibrations.
 	
+	This is the complete but slower version of this calculation, which returns an `uarray` with
+	reasonably accurate covariance between the `Teq` values, but also with all other variables.
+	For example, these `Teq` values are strongly correlated with the corresponding values of `D47`.
+	"""
+
+	N = D47.size
+	N47 = D47_calib_coefs.size
+	N48 = D48_calib_coefs.size
+	
+	def fun(j, *args):
+
+		args = _np.array(args)
+		D47_n = args[:N]
+		D48_n = args[N:2*N]
+		D47_calib_coefs_n = args[-N48-N47:-N48]
+		D48_calib_coefs_n = args[-N48:]
+			
+		params = _lmfit.Parameters()
+		a0, a2 = _D47_approx_calib_coefs
+		for k in range(N):
+			params.add(f'T{k}', value = ((D47_n[k] - a0) / a2)**-.5 - 273.15)
+		
+		D47_calib_coefs_u = _np.array(_uc.correlated_values(D47_calib_coefs_n, D47_calib_coefs.covar))
+		D48_calib_coefs_u = _np.array(_uc.correlated_values(D48_calib_coefs_n, D48_calib_coefs.covar))
+
+		def cost_fun(
+			p,
+			ignore_calib_uncertainties = ignore_calib_uncertainties,
+		):
+			T = _np.array([p[f'T{k}'] for k in range(N)])
+			R = _cd.uarray(_np.concatenate((
+				D47 - D4x_calib_function(T, D47_calib_coefs_u, ignore_calib_uncertainties = ignore_calib_uncertainties),
+				D48 - D4x_calib_function(T, D48_calib_coefs_u, ignore_calib_uncertainties = ignore_calib_uncertainties),
+			)))
+			
+			invS = _np.linalg.inv(R.covar)
+			L = _cholesky(invS)
+
+			R_n = _np.concatenate((
+				D47_n - D4x_calib_function(T, D47_calib_coefs_n, ignore_calib_uncertainties = ignore_calib_uncertainties),
+				D48_n - D4x_calib_function(T, D48_calib_coefs_n, ignore_calib_uncertainties = ignore_calib_uncertainties),
+			))
+
+			return L @ R_n
+		
+		minresult = _lmfit.minimize(cost_fun, params, method = 'powell', scale_covar = False)
+
+		return minresult.params[f'T{j}'].value
+	
+	wrapped_fun = _uc.wrap(fun)
+	Teq = _cd.uarray([wrapped_fun(_, *D47, *D48, *D47_calib_coefs, *D48_calib_coefs) for _ in range(N)])
+	
+	R = _cd.uarray(_np.concatenate((
+		D47 - D47_calib_function(Teq.n, ignore_calib_uncertainties = ignore_calib_uncertainties),
+		D48 - D48_calib_function(Teq.n, ignore_calib_uncertainties = ignore_calib_uncertainties),
+	)))
+	
+	p = _np.zeros((N,))
+	for k in range(N):
+		r = R[k::N]
+		z2 = r.m
+		p[k] = 1-_chi2.cdf(z2, 2)
+
 	return Teq, p
 
 
 def projected_Teq(
-	X,
-	Y,
-	slope,
-	D47_calib_coefs = D47_calib_coefs,
-	D48_calib_coefs = D48_calib_coefs,
-	ignore_calib_uncertainties = False,
+	D47: _cd.uarray,
+	D48: _cd.uarray,
+	kinetic_slope: (float | _uc.UFloat),
+	D47_calib_coefs: _cd.uarray = D47_calib_coefs,
+	D48_calib_coefs: _cd.uarray = D48_calib_coefs,
+	ignore_calib_uncertainties: bool = False,
 ):
 
-	X = _np.asarray(X)
-	Y = _np.asarray(Y)
-	N = X.size
+	D47 = _cd.uarray(D47)
+	D48 = _cd.uarray(D48)
+	N = D47.size
 	N47c = D47_calib_coefs.size
 	N48c = D48_calib_coefs.size
-	T =  _cd.uarray(X * 0)
+	T =  D47 * 0
 	for k in range(N):
 
 		# function to solve
-		def fun(t, *args): # args = (X, Y, slope, *D47_calib_coefs, *D48_calib_coefs)
+		def fun(t, *args): # args = (D47, D48, kinetic_slope, *D47_calib_coefs, *D48_calib_coefs)
 			return (
 				args[1]
 				- _np.sum([
@@ -531,24 +580,14 @@ def projected_Teq(
 		wg = _uc.wrap(g)
 
 		T[k] = wg(
-			X[k],
-			Y[k],
-			slope,
+			D47[k],
+			D48[k],
+			kinetic_slope,
 			*D47_calib_coefs,
 			*D48_calib_coefs,
 		)
 		
 	return T
-
-
-def T_ellipses(T, p = 0.95, ax = None, **kwargs):
-	return error_ellipses(
-		D47_calib_function(T),
-		D48_calib_function(T),
-		p = p,
-		ax = ax,
-		**kwargs,
-	)
 
 	
 def save_Teq_report(
@@ -597,3 +636,19 @@ def save_Teq_report(
 			if p[k] >= p_cutoff:
 				fid.write(f'{sep}{Tnv[k]:{fmt_Tnv}}{sep}{Tse[k]:{fmt_Tse}}{sep}')
 				fid.write(sep.join([f'{Tcm[j,k]:{fmt_cm}}' for j in range(N)]))
+
+# _np.set_printoptions(precision = 4, linewidth = 1000)
+# 
+# X = _cd.uarray(_uc.correlated_values([0.25, 0.64], _np.eye(2)*25e-6))
+# Y = _cd.uarray(_uc.correlated_values([0.155, 0.3], _np.eye(2)*225e-6))
+# 
+# T1 = lazy_nearest_Teq(X, Y, D47_calib_function, D48_calib_function)[0]
+# print(T1)
+# 
+# T2 = nearest_Teq(X, Y, D47_calib_coefs, D48_calib_coefs)
+# print(T2)
+# 
+# slope = _uc.ufloat(-1, 0.1)
+# 
+# T3 = projected_Teq(X, Y, slope, D47_calib_coefs, D48_calib_coefs)
+# print(T3)

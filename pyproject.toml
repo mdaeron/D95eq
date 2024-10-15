@@ -7,12 +7,11 @@ requires-python = ">=3.11"
 license = {file = "LICENSE"}
 classifiers = ["License :: OSI Approved :: MIT License"]
 dependencies = [
-    "D47calib>=1.3.1",
     "lmfit>=1.3.2",
     "numpy>=2.1.1",
     "ogls>=1.0",
     "uncertainties>=3.2.2",
-    "correldata>=1.2.0",
+    "correldata>=1.3.0,<2",
 ]
 
 [project.urls]
