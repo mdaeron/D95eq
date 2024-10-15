@@ -204,6 +204,17 @@ def error_ellipses(
 	ax: (_ppl.Axes | None) = None,
 	**kwargs,
 ) -> list:
+	"""
+	Plot the joint `p`-level confidence ellipses for the elements of (`X`, `Y`),
+	and return a list of the `Ellipse` objects thus created.
+	
+	**Arguments**
+	* `X`: uarray of x values
+	* `Y`: uarray of y values
+	* `p`: confidence level
+	* `ax`: which instance of `matplotlib.axes.Axes` to draw in; use current axes if `ax` = `None`.
+	* `kwargs`: passed to `matplotlib.patches.Ellipse()`	
+	"""
 
 	kwargs = dict(fc = 'None', ec = 'k', lw = 0.7) | kwargs
 
@@ -234,11 +245,30 @@ def error_ellipses(
 
 
 def T_ellipses(
-	T: _cd.uarray,
+	T: (_np.ndarray | _cd.uarray),
 	p: float = 0.95,
+	D47_calib_function = D47_calib_function,
+	D48_calib_function = D48_calib_function,
 	ax: (_ppl.Axes | None) = None,
 	**kwargs,
 ) -> list:
+	"""
+	Plot the joint `p`-level confidence ellipses in (Δ<sub>47</sub>, Δ<sub>48</sub>)
+	space, for temperatures equal to the elements of `T`, and return a list of the
+	`Ellipse` objects thus created.
+
+	**Arguments**
+	* `T`: `ndarray` or `uarray` of temperatures to plot
+	* `p`: confidence level
+	* `D47_calib_function`: specify Δ<sub>47</sub> calibration
+	(yielding an `uarray` of Δ<sub>47</sub> values accounting
+	for calibration uncertainties as well as uncertainties in `T`)
+	* `D48_calib_function`: specify Δ<sub>48</sub> calibration
+	(yielding an `uarray` of Δ<sub>48</sub> values accounting
+	for calibration uncertainties as well as uncertainties in `T`)
+	* `ax`: which instance of `matplotlib.axes.Axes` to draw in; use current axes if `ax` = `None`.
+	* `kwargs`: passed to `matplotlib.patches.Ellipse()`	
+	"""
 	return error_ellipses(
 		D47_calib_function(T),
 		D48_calib_function(T),
