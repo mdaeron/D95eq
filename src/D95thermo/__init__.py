@@ -708,6 +708,28 @@ def save_Teq_report(
 				fid.write(f'{sep}{Tnv[k]:{fmt_Tnv}}{sep}{Tse[k]:{fmt_Tse}}{sep}')
 				fid.write(sep.join([f'{Tcm[j,k]:{fmt_cm}}' for j in range(N)]))
 
+
+__app = typer.Typer(
+	add_completion = False,
+	context_settings={'help_option_names': ['-h', '--help']},
+	rich_markup_mode = 'rich',
+)
+
+@__app.command()
+def _cli(
+	version: Annotated[bool, typer.Option('--version', '-V', help = 'Print D95thermo version')] = False,
+):
+		"""
+[b]Purpose:[/b]
+
+Reads data from an input file, computes p-value and T estimates, and print out the results.
+"""
+	if version:
+		print(__version__)
+		return None
+
+def __cli(): __app()
+
 # _np.set_printoptions(precision = 4, linewidth = 1000)
 # 
 # X = _cd.uarray(_uc.correlated_values([0.25, 0.64], _np.eye(2)*25e-6))
