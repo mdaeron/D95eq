@@ -1,5 +1,10 @@
 """
 Estimate carbonate formation temperatures from dual clumped isotope measurements
+
+.. include:: ../../docpages/install.md
+.. include:: ../../docpages/cli.md
+
+* * *
 """
 
 __author__    = 'Mathieu Daëron'
