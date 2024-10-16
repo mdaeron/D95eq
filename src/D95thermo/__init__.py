@@ -14,6 +14,7 @@ import ogls as _ogls
 import uncertainties as _uc
 import lmfit as _lmfit
 import correldata as _cd
+import typer as _typer
 
 from uncertainties import unumpy as _unp
 from matplotlib import pyplot as _ppl
@@ -22,6 +23,7 @@ from scipy.stats import chi2 as _chi2
 from scipy.linalg import eigh as _eigh
 from scipy.linalg import cholesky as _cholesky
 from scipy.optimize import fsolve as _fsolve
+from typing_extensions import Annotated as _Annotated
 
 
 #### Utility variables and functions ####
@@ -709,7 +711,9 @@ def save_Teq_report(
 				fid.write(sep.join([f'{Tcm[j,k]:{fmt_cm}}' for j in range(N)]))
 
 
-__app = typer.Typer(
+_typer.rich_utils.STYLE_HELPTEXT = ''
+
+__app = _typer.Typer(
 	add_completion = False,
 	context_settings={'help_option_names': ['-h', '--help']},
 	rich_markup_mode = 'rich',
@@ -717,9 +721,9 @@ __app = typer.Typer(
 
 @__app.command()
 def _cli(
-	version: Annotated[bool, typer.Option('--version', '-V', help = 'Print D95thermo version')] = False,
+	version: _Annotated[bool, _typer.Option('--version', '-v', help = 'Show version and exit.')] = False,
 ):
-		"""
+	"""
 [b]Purpose:[/b]
 
 Reads data from an input file, computes p-value and T estimates, and print out the results.

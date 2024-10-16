@@ -39,6 +39,7 @@ test     = {cmd = 'python test.py', cwd ='test' }
 
 [tool.pixi.dependencies]
 pdoc = ">=14.4.0,<15"
+typer = ">=0.12.5,<0.13"
 
 [project.scripts]
-D95thermo = "D95thermo:__cli__"
+D95thermo = "D95thermo:__cli"
