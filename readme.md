@@ -4,7 +4,7 @@
 
 Estimate carbonate formation temperatures from dual clumped isotope measurements, either by direct intersection with the eauilibrium curve or by projection on the equilibrium curve following an aribitrary kinetic fractionation slope.
 
-Full error propagation accounting for:
+Returns p-values and (statistically correlated) temperature estimates with full error propagation accounting for:
 
 + Arbitrarily correlated analytical errors in Δ<sub>47</sub> and Δ<sub>48</sub> measurements
 + Arbitrarily correlated calibration errors on equilibrium Δ<sub>47</sub> and Δ<sub>48</sub> laws

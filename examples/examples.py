@@ -19,7 +19,7 @@ Teq, p = nearest_Teq(X, Y)
 Tp = projected_Teq(X[p < p_cutoff], Y[p < p_cutoff], slope)
 
 fig = _ppl.figure(figsize = (6.5,4.5))
-_ppl.title("“$Δ_{95}$ thermometry” ($95=47+48$)")
+_ppl.title("“$Δ_{95}$ thermometry” ($47+48=95$)")
 
 plot_D95_equilibrium()
 
