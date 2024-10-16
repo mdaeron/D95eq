@@ -1,4 +1,4 @@
-from correldata import read_data_from_file
+from correldata import read_data_from_file, save_data_to_file
 import numpy as _np
 import uncertainties as _uc
 
@@ -16,7 +16,7 @@ X = data['D47']
 Y = data['D48']
 
 Teq, p = nearest_Teq(X, Y)
-Tp = projected_Teq(X[p < p_cutoff], Y[p < p_cutoff], slope)
+Tp = projected_Teq(X, Y, slope)
 
 fig = _ppl.figure(figsize = (6.5,4.5))
 _ppl.title("“$Δ_{95}$ thermometry” ($47+48=95$)")
@@ -26,9 +26,9 @@ plot_D95_equilibrium()
 error_ellipses(X, Y, ec = 'k')
 
 T_ellipses(Teq[p >= p_cutoff], ec = eq_color, fc = (*eq_color, 0.2))
-T_ellipses(Tp, ec = diseq_color, fc = (*diseq_color, 0.2))
+T_ellipses(Tp[p < p_cutoff], ec = diseq_color, fc = (*diseq_color, 0.2))
 
-for x, y, t in zip(X[p < p_cutoff], Y[p < p_cutoff], Tp):
+for x, y, t in zip(X[p < p_cutoff], Y[p < p_cutoff], Tp[p < p_cutoff]):
 	v = _np.array([
 		D47_calib_function(t).n - x.n,
 		D48_calib_function(t).n - y.n,
@@ -63,7 +63,7 @@ for x, y, t in zip(X[p < p_cutoff], Y[p < p_cutoff], Tp):
 			**kw,
 		)
 
-for x, y, t, pv in zip(X[p >= p_cutoff], Y[p >= p_cutoff], Teq, p[p >= p_cutoff]):
+for x, y, t, pv in zip(X[p >= p_cutoff], Y[p >= p_cutoff], Teq[p >= p_cutoff], p[p >= p_cutoff]):
 	_ppl.text(
 		x.n, y.n + 5*y.s,
 		'($Δ_{47}, Δ_{48}$)\nobservation',
@@ -80,7 +80,7 @@ for x, y, t, pv in zip(X[p >= p_cutoff], Y[p >= p_cutoff], Teq, p[p >= p_cutoff]
 		ha = 'left', va = 'top', size = 8, color = eq_color,
 	)
 
-for x, y, t, pv in zip(X[p < p_cutoff], Y[p < p_cutoff], Tp, p[p < p_cutoff]):
+for x, y, t, pv in zip(X[p < p_cutoff], Y[p < p_cutoff], Tp[p < p_cutoff], p[p < p_cutoff]):
 	_ppl.text(
 		x.n, y.n + 5*y.s,
 		'($Δ_{47}, Δ_{48}$)\nobservation',
@@ -126,3 +126,9 @@ _ppl.axis('equal')
 _ppl.axis([0.15, 0.78, None, None])
 _ppl.savefig('example_plot.pdf')
 _ppl.savefig('example_plot.png', dpi = 150)
+
+data['pvalue_eq'] = p
+data['Teq'] = Teq
+data['Tkp'] = Tp
+
+save_data_to_file(data, 'output.csv')
