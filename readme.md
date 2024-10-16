@@ -1,6 +1,6 @@
 # D95thermo
 
-(because 95 = 47 + 48)
+(because 47 + 48 = 95)
 
 Estimate carbonate formation temperatures from dual clumped isotope measurements, either by direct intersection with the eauilibrium curve or by projection on the equilibrium curve following an aribitrary kinetic fractionation slope.
 
