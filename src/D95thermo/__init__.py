@@ -14,6 +14,7 @@ __license__   = 'MIT License - https://opensource.org/licenses/MIT'
 __date__      = '2024-10-15'
 __version__   = '0.9.0'
 
+import sys
 import numpy as _np
 import ogls as _ogls
 import uncertainties as _uc
@@ -726,6 +727,9 @@ __app = _typer.Typer(
 
 @__app.command()
 def _cli(
+	input:   _Annotated[str, _typer.Option('--input', '-i', help = "Input file to read from (otherwise read from stdin).")] = None,
+	output:  _Annotated[str, _typer.Option('--output', '-o', help = "Output file to write to (otherwise write to stdout).")] = None,
+	kslope:  _Annotated[str, _typer.Option('--kslope', '-k', help = "Kinetic fractionation slope, using format [bold]'n(s)'[/bold] (with quotes), where [bold]n[/bold] is the slope and [bold]s[/bold] its standard error.")] = None,
 	version: _Annotated[bool, _typer.Option('--version', '-v', help = 'Show version and exit.')] = False,
 ):
 	"""
@@ -737,6 +741,49 @@ Reads data from an input file, computes p-value and T estimates, and print out t
 		print(__version__)
 		return None
 
+	if input is None:
+		datastring = ''.join(sys.stdin)
+	elif isinstance(input, str):
+		with open(input) as fid:
+			datastring = fid.read()
+
+	data = _cd.read_data(datastring)
+
+	Teq, p = nearest_Teq(data['D47'], data['D48'])
+	data['eq_pvalue'] = p
+	data['Teq'] = Teq
+
+	if isinstance(kslope, str):
+		kslope = kslope.split(')')[0]
+		kslope = kslope.split('(')
+		kslope = _uc.ufloat(float(kslope[0]), float(kslope[1]))
+
+		Tkp = projected_Teq(data['D47'], data['D48'], kinetic_slope = kslope)
+
+		data['kinetic_slope'] = _cd.uarray([kslope for _ in data['D47']])
+
+		data['Tkp'] = Tkp
+		
+
+	out = _cd.data_string(
+		data,
+		exclude_fields = [
+			'correl_kinetic_slope',
+			'correl_D47_Teq',
+			'correl_D48_Teq',
+			'correl_D47_Tkp',
+			'correl_D48_Tkp',
+			'correl_Teq_Tkp',
+			'correl_kinetic_slope_Tkp',
+		]
+	)
+	
+	if output is None:
+		print(out)
+	elif isinstance(output, str):
+		with open(output, 'w') as fid:
+			fid.write(out)
+		
 def __cli(): __app()
 
 # _np.set_printoptions(precision = 4, linewidth = 1000)
