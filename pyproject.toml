@@ -27,6 +27,7 @@ platforms = ["osx-arm64"]
 
 [tool.pixi.system-requirements]
 macos = "12.7.5"
+
 [tool.pixi.pypi-dependencies]
 D95thermo = { path = ".", editable = true }
 
