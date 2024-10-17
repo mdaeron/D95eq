@@ -38,7 +38,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/xz-5.2.6-h57fd34a_0.tar.bz2
       - pypi: https://files.pythonhosted.org/packages/0a/0d/2c6aaab67ac566d76322e87827d707214c5f6ffb5a4fcd456a8633da1788/asteval-1.0.5-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e3/04/33351c5d5108460a8ce6d512307690b023f0cfcad5899499f5c83b9d63b1/contourpy-1.3.0-cp312-cp312-macosx_11_0_arm64.whl
-      - pypi: https://files.pythonhosted.org/packages/75/a8/2c63b9c324c4f91fbecf8cfbb9c2611d5f338d29ba91f64b07dce8e2569f/correldata-1.3.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/31/a0/049ee2499206226a70fc2baab64da677e797a8c9202541435dbd307f4ae6/correldata-1.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e7/05/c19819d5e3d95294a6f5947fb9b9629efb316b96de511b418c53d245aae6/cycler-0.12.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/46/d1/e73b6ad76f0b1fb7f23c35c6d95dbc506a9c8804f43dda8cb5b0fa6331fd/dill-0.3.9-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/67/9d/cfbfe36e5061a8f68b154454ba2304eb01f40d4ba9b63e41d9058909baed/fonttools-4.54.1-cp312-cp312-macosx_11_0_arm64.whl
@@ -160,9 +160,9 @@ packages:
   requires_python: '>=3.9'
 - kind: pypi
   name: correldata
-  version: 1.3.0
-  url: https://files.pythonhosted.org/packages/75/a8/2c63b9c324c4f91fbecf8cfbb9c2611d5f338d29ba91f64b07dce8e2569f/correldata-1.3.0-py3-none-any.whl
-  sha256: 7d1b016f46adf1cc34309c31b3c999877115a769eb1f1f3fac1f4374008e32d7
+  version: 1.4.0
+  url: https://files.pythonhosted.org/packages/31/a0/049ee2499206226a70fc2baab64da677e797a8c9202541435dbd307f4ae6/correldata-1.4.0-py3-none-any.whl
+  sha256: d465ce80c5cb15ce10fc3050948c5fa4df66e0cfe91dcf60c98f7ddb4e244a2f
   requires_dist:
   - numpy>=2.1.1
   - uncertainties>=3.2.2
@@ -185,13 +185,12 @@ packages:
   name: d95thermo
   version: 0.9.0
   path: .
-  sha256: f3d441012c2424f58a0f3b6e84b8e0a443aad3b2db87bbf47f93510a2dfd9a98
+  sha256: f3402b424fb9f92d7ecf1ae51a4feb43383725e8aaac356f1a883bc6a7b75f90
   requires_dist:
   - lmfit>=1.3.2
   - numpy>=2.1.1
   - ogls>=1.0
   - uncertainties>=3.2.2
-  - correldata>=1.3.0,<2
   requires_python: '>=3.11'
   editable: true
 - kind: pypi
