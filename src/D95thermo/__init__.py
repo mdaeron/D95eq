@@ -14,6 +14,7 @@ __license__   = 'MIT License - https://opensource.org/licenses/MIT'
 __date__      = '2024-10-15'
 __version__   = '0.9.0'
 
+
 import sys
 import numpy as _np
 import ogls as _ogls
@@ -767,15 +768,8 @@ Reads data from an input file, computes p-value and T estimates, and print out t
 
 	out = _cd.data_string(
 		data,
-		exclude_fields = [
-			'correl_kinetic_slope',
-			'correl_D47_Teq',
-			'correl_D48_Teq',
-			'correl_D47_Tkp',
-			'correl_D48_Tkp',
-			'correl_Teq_Tkp',
-			'correl_kinetic_slope_Tkp',
-		]
+		show_mixed_correl = False,
+		exclude_fields = ['correl_kinetic_slope'],
 	)
 	
 	if output is None:
