@@ -1,5 +1,10 @@
 """
 Estimate carbonate formation temperatures from dual clumped isotope measurements
+
+.. include:: ../../docpages/install.md
+.. include:: ../../docpages/cli.md
+
+* * *
 """
 
 __author__    = 'Mathieu Daëron'
@@ -9,11 +14,14 @@ __license__   = 'MIT License - https://opensource.org/licenses/MIT'
 __date__      = '2024-10-15'
 __version__   = '0.9.0'
 
+
+import sys
 import numpy as _np
 import ogls as _ogls
 import uncertainties as _uc
 import lmfit as _lmfit
 import correldata as _cd
+import typer as _typer
 
 from uncertainties import unumpy as _unp
 from matplotlib import pyplot as _ppl
@@ -22,6 +30,7 @@ from scipy.stats import chi2 as _chi2
 from scipy.linalg import eigh as _eigh
 from scipy.linalg import cholesky as _cholesky
 from scipy.optimize import fsolve as _fsolve
+from typing_extensions import Annotated as _Annotated
 
 
 #### Utility variables and functions ####
@@ -707,6 +716,69 @@ def save_Teq_report(
 			if p[k] >= p_cutoff:
 				fid.write(f'{sep}{Tnv[k]:{fmt_Tnv}}{sep}{Tse[k]:{fmt_Tse}}{sep}')
 				fid.write(sep.join([f'{Tcm[j,k]:{fmt_cm}}' for j in range(N)]))
+
+
+_typer.rich_utils.STYLE_HELPTEXT = ''
+
+__app = _typer.Typer(
+	add_completion = False,
+	context_settings={'help_option_names': ['-h', '--help']},
+	rich_markup_mode = 'rich',
+)
+
+@__app.command()
+def _cli(
+	input:   _Annotated[str, _typer.Option('--input', '-i', help = "Input file to read from (otherwise read from stdin).")] = None,
+	output:  _Annotated[str, _typer.Option('--output', '-o', help = "Output file to write to (otherwise write to stdout).")] = None,
+	kslope:  _Annotated[str, _typer.Option('--kslope', '-k', help = "Kinetic fractionation slope, using format [bold]'n(s)'[/bold] (with quotes), where [bold]n[/bold] is the slope and [bold]s[/bold] its standard error.")] = None,
+	version: _Annotated[bool, _typer.Option('--version', '-v', help = 'Show version and exit.')] = False,
+):
+	"""
+[b]Purpose:[/b]
+
+Reads data from an input file, computes p-value and T estimates, and print out the results.
+"""
+	if version:
+		print(__version__)
+		return None
+
+	if input is None:
+		datastring = ''.join(sys.stdin)
+	elif isinstance(input, str):
+		with open(input) as fid:
+			datastring = fid.read()
+
+	data = _cd.read_data(datastring)
+
+	Teq, p = nearest_Teq(data['D47'], data['D48'])
+	data['eq_pvalue'] = p
+	data['Teq'] = Teq
+
+	if isinstance(kslope, str):
+		kslope = kslope.split(')')[0]
+		kslope = kslope.split('(')
+		kslope = _uc.ufloat(float(kslope[0]), float(kslope[1]))
+
+		Tkp = projected_Teq(data['D47'], data['D48'], kinetic_slope = kslope)
+
+		data['kinetic_slope'] = _cd.uarray([kslope for _ in data['D47']])
+
+		data['Tkp'] = Tkp
+		
+
+	out = _cd.data_string(
+		data,
+		show_mixed_correl = False,
+		exclude_fields = ['correl_kinetic_slope'],
+	)
+	
+	if output is None:
+		print(out)
+	elif isinstance(output, str):
+		with open(output, 'w') as fid:
+			fid.write(out)
+		
+def __cli(): __app()
 
 # _np.set_printoptions(precision = 4, linewidth = 1000)
 # 

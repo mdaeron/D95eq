@@ -6,7 +6,7 @@ from matplotlib import pyplot as _ppl
 from D95thermo import *
 
 
-slope = _uc.ufloat(-1, 0.1)
+slope = _uc.ufloat(-1., 0.1)
 p_cutoff = 0.05
 eq_color = (0,.5,.2)
 diseq_color = (1, 0, .4)
@@ -14,6 +14,7 @@ diseq_color = (1, 0, .4)
 data = correldata.read_data_from_file('test_data.csv')
 X = data['D47']
 Y = data['D48']
+N = X.size
 
 Teq, p = nearest_Teq(X, Y)
 Tp = projected_Teq(X, Y, slope)
@@ -134,17 +135,25 @@ _ppl.savefig('test_plot.pdf')
 
 output = {}
 output['Sample'] = data['Sample']
+output['D47'] = data['D47']
+output['D48'] = data['D48']
 output['p_eq'] = p
 output['Teq'] = correldata.uarray(Teq)
+output['kslope'] = correldata.uarray([slope for _ in data['D47']])
 output['Tkp'] = correldata.uarray(Tp)
 
 kwargs = dict(
 	float_format = {
 		'p_eq': 'z.3e',
+		'D47': 'z.3f',
+		'D48': 'z.3f',
 		'Teq': 'z.2f',
+		'Teq2': 'z.2f',
 		'Tkp': 'z.2f',
 		},
 	correl_format = 'z.6f',
+	show_mixed_correl = False,
+	exclude_fields = ['correl_kslope'],
 )
 
 print(correldata.data_string(output, **kwargs))

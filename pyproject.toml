@@ -16,6 +16,7 @@ dependencies = [
 
 [project.urls]
 Home = "https://github.com/mdaeron/D95thermo"
+Documentation = "https://mdaeron.github.io/D95thermo"
 
 [build-system]
 requires = ["flit_core >=3.2,<4"]
@@ -39,3 +40,7 @@ test     = {cmd = 'python test.py', cwd ='test' }
 
 [tool.pixi.dependencies]
 pdoc = ">=14.4.0,<15"
+typer = ">=0.12.5,<0.13"
+
+[project.scripts]
+D95thermo = "D95thermo:__cli"
