@@ -731,6 +731,8 @@ def _cli(
 	input:   _Annotated[str, _typer.Option('--input', '-i', help = "Input file to read from (otherwise read from stdin).")] = None,
 	output:  _Annotated[str, _typer.Option('--output', '-o', help = "Output file to write to (otherwise write to stdout).")] = None,
 	kslope:  _Annotated[str, _typer.Option('--kslope', '-k', help = "Kinetic fractionation slope, using format [bold]'n(s)'[/bold] (with quotes), where [bold]n[/bold] is the slope and [bold]s[/bold] its standard error.")] = None,
+	hpoutput: _Annotated[bool, _typer.Option('--high-precision-output', '-p', help = "Generate higher precision output.")] = False,
+	show_mixed_correl: _Annotated[bool, _typer.Option('--show_mixed_correl', '-m', help = "Show correlations between different fields.")] = False,
 	version: _Annotated[bool, _typer.Option('--version', '-v', help = 'Show version and exit.')] = False,
 ):
 	"""
@@ -761,15 +763,29 @@ Reads data from an input file, computes p-value and T estimates, and print out t
 
 		Tkp = projected_Teq(data['D47'], data['D48'], kinetic_slope = kslope)
 
-		data['kinetic_slope'] = _cd.uarray([kslope for _ in data['D47']])
+		data['kslope'] = _cd.uarray([kslope for _ in data['D47']])
 
 		data['Tkp'] = Tkp
 		
+	ffmt = {
+		'D47': '.6f',
+		'D48': '.6f',
+		'kslope': lambda x: f'{x:z.6f}'.rstrip('0'),
+		'Teq': 'z.6f',
+		'Tkp': 'z.6f',
+	} if hpoutput else {
+		'D47': '.4f',
+		'D48': '.4f',
+		'kslope': lambda x: f'{x:z.6f}'.rstrip('0'),
+		'Teq': 'z.2f',
+		'Tkp': 'z.2f',
+	}
 
 	out = _cd.data_string(
 		data,
-		show_mixed_correl = False,
-		exclude_fields = ['correl_kinetic_slope'],
+		float_format = ffmt,
+		show_mixed_correl = show_mixed_correl,
+		exclude_fields = ['correl_kslope'],
 	)
 	
 	if output is None:
