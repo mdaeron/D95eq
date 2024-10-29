@@ -129,7 +129,7 @@ def D4x_calib_function(
 	degs = _np.arange(coefs.size)
 	
 	D4x = (
-		_np.expand_dims(coefs.n if ignore_calib_uncertainties else coefs, 1)
+		_np.expand_dims(_cd.nv(coefs) if ignore_calib_uncertainties else coefs, 1)
 		* _np.expand_dims((T+273.15)**-1, 0)
 		** _np.expand_dims(degs, 1)
 	).sum(
@@ -149,6 +149,7 @@ D47_calib_coefs = _cd.read_data('''
 42.65722989162373e3,     1.27712751715908e3,    0.8865771 , -0.98994249,  1.
 '''[1:-1])['coefs']
 
+# D47_calib_coefs = _cd.uarray(_uc.correlated_values(D47_calib_coefs.n, D47_calib_coefs.covar / 1e6))
 
 def D47_calib_function(
 	T: (float | _uc.UFloat | _cd.uarray),
@@ -181,6 +182,7 @@ D48_calib_coefs = _cd.read_data('''
 -7.626804774e8,   4.781911778e7,   0.701167327, -1.         ,  1.         , -1.         ,  1.         
 '''[1:-1], validate_covar = False)['coefs'] # computed from _compute_D48_calib_coefficients()
 
+# D48_calib_coefs = _cd.uarray(_uc.correlated_values(D48_calib_coefs.n, D48_calib_coefs.covar / 1e6))
 
 def D48_calib_function(
 	T: (float | _uc.UFloat | _cd.uarray),
@@ -524,7 +526,7 @@ def lazy_nearest_Teq(
 		L = _cholesky(invS)
 		return L @ R.n
 	
-	minresult = _lmfit.minimize(cost_fun, params, method = 'least_squares', scale_covar = False)
+	minresult = _lmfit.minimize(cost_fun, params, method = 'least_squares', scale_covar = False, jac = '3-point')
 
 	Teq = _cd.uarray([minresult.uvars[f'T{k}'] for k in range(N)])
 
@@ -576,8 +578,8 @@ def nearest_Teq(
 		for k in range(N):
 			params.add(f'T{k}', value = ((D47_n[k] - a0) / a2)**-.5 - 273.15)
 		
-		D47_calib_coefs_u = _np.array(_uc.correlated_values(D47_calib_coefs_n, D47_calib_coefs.covar))
-		D48_calib_coefs_u = _np.array(_uc.correlated_values(D48_calib_coefs_n, D48_calib_coefs.covar))
+		D47_calib_coefs_u = _cd.uarray(_uc.correlated_values(D47_calib_coefs_n, D47_calib_coefs.covar))
+		D48_calib_coefs_u = _cd.uarray(_uc.correlated_values(D48_calib_coefs_n, D48_calib_coefs.covar))
 
 		def cost_fun(
 			p,
@@ -599,7 +601,9 @@ def nearest_Teq(
 
 			return L @ R_n
 		
-		minresult = _lmfit.minimize(cost_fun, params, method = 'powell', scale_covar = False)
+		minresult = _lmfit.minimize(cost_fun, params, method = 'least_squares', scale_covar = False, jac = '3-point')
+		# slower but yields very similar results:
+		# minresult = _lmfit.minimize(cost_fun, params, method = 'powell', scale_covar = False)
 
 		return minresult.params[f'T{j}'].value
 	
@@ -607,8 +611,8 @@ def nearest_Teq(
 	Teq = _cd.uarray([wrapped_fun(_, *D47, *D48, *D47_calib_coefs, *D48_calib_coefs) for _ in range(N)])
 	
 	R = _cd.uarray(_np.concatenate((
-		D47 - D47_calib_function(Teq.n, ignore_calib_uncertainties = ignore_calib_uncertainties),
-		D48 - D48_calib_function(Teq.n, ignore_calib_uncertainties = ignore_calib_uncertainties),
+		D47 - D4x_calib_function(Teq.n, D47_calib_coefs, ignore_calib_uncertainties = ignore_calib_uncertainties),
+		D48 - D4x_calib_function(Teq.n, D48_calib_coefs, ignore_calib_uncertainties = ignore_calib_uncertainties),
 	)))
 	
 	p = _np.zeros((N,))
@@ -634,7 +638,7 @@ def projected_Teq(
 	N = D47.size
 	N47c = D47_calib_coefs.size
 	N48c = D48_calib_coefs.size
-	T =  D47 * 0
+	T = D47 * 0
 	for k in range(N):
 
 		# function to solve

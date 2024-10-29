@@ -16,7 +16,7 @@ X = data['D47']
 Y = data['D48']
 N = X.size
 
-Teq, p = nearest_Teq(X, Y)
+Teq, p = nearest_Teq(X, Y, ignore_calib_uncertainties = False)
 Tp = projected_Teq(X, Y, slope)
 
 fig = _ppl.figure(figsize = (6.5,4.5))
