@@ -12,6 +12,7 @@ dependencies = [
     "ogls>=1.0",
     "uncertainties>=3.2.2",
     "correldata>=1.5.0,<2",
+	"typer>=0.12.5,<0.13",
 ]
 
 [project.urls]
@@ -30,17 +31,23 @@ platforms = ["osx-arm64"]
 macos = "12.7.5"
 
 [tool.pixi.pypi-dependencies]
-D95thermo = { path = ".", editable = true }
+D95thermo = {path = ".", editable = true}
 
 [tool.pixi.tasks]
-examples = {cmd = 'python large_example.py', cwd ='examples' }
-coefs    = {cmd = 'python calib_coefs.py', cwd ='calib_coefs' }
-docs     = {cmd = 'python ../build_doc.py', cwd ='src' }
+examples = {cmd = 'python example.py; python large_example.py', cwd ='examples'}
+coefs    = {cmd = 'python calib_coefs.py', cwd ='calib_coefs'}
 test     = {cmd = 'python test.py', cwd ='test' }
-
-[tool.pixi.dependencies]
-pdoc = ">=14.4.0,<15"
-typer = ">=0.12.5,<0.13"
 
 [project.scripts]
 D95thermo = "D95thermo:__cli"
+
+[tool.pixi.feature.dev.dependencies]
+pdoc = ">=14.4.0,<15"
+flit = ">=3.9.0,<4"
+
+[tool.pixi.feature.dev.tasks]
+doc     = {cmd = 'python build_doc.py'}
+publish = {cmd = 'flit publish'}
+
+[tool.pixi.environments]
+dev = ["dev"]
