@@ -578,6 +578,8 @@ def nearest_Teq(
 		for k in range(N):
 			params.add(f'T{k}', value = ((D47_n[k] - a0) / a2)**-.5 - 273.15)
 		
+		D47_u = _cd.uarray(_uc.correlated_values(D47_n, D47.covar))
+		D48_u = _cd.uarray(_uc.correlated_values(D48_n, D48.covar))
 		D47_calib_coefs_u = _cd.uarray(_uc.correlated_values(D47_calib_coefs_n, D47_calib_coefs.covar))
 		D48_calib_coefs_u = _cd.uarray(_uc.correlated_values(D48_calib_coefs_n, D48_calib_coefs.covar))
 
@@ -587,19 +589,19 @@ def nearest_Teq(
 		):
 			T = _np.array([p[f'T{k}'] for k in range(N)])
 			R = _cd.uarray(_np.concatenate((
-				D47 - D4x_calib_function(T, D47_calib_coefs_u, ignore_calib_uncertainties = ignore_calib_uncertainties),
-				D48 - D4x_calib_function(T, D48_calib_coefs_u, ignore_calib_uncertainties = ignore_calib_uncertainties),
+				D47_u - D4x_calib_function(T, D47_calib_coefs_u, ignore_calib_uncertainties = ignore_calib_uncertainties),
+				D48_u - D4x_calib_function(T, D48_calib_coefs_u, ignore_calib_uncertainties = ignore_calib_uncertainties),
 			)))
 			
 			invS = _np.linalg.inv(R.covar)
 			L = _cholesky(invS)
 
-			R_n = _np.concatenate((
-				D47_n - D4x_calib_function(T, D47_calib_coefs_n, ignore_calib_uncertainties = ignore_calib_uncertainties),
-				D48_n - D4x_calib_function(T, D48_calib_coefs_n, ignore_calib_uncertainties = ignore_calib_uncertainties),
-			))
+# 			R_n = _np.concatenate((
+# 				D47_n - D4x_calib_function(T, D47_calib_coefs_n, ignore_calib_uncertainties = ignore_calib_uncertainties),
+# 				D48_n - D4x_calib_function(T, D48_calib_coefs_n, ignore_calib_uncertainties = ignore_calib_uncertainties),
+# 			))
 
-			return L @ R_n
+			return L @ R.n
 		
 		minresult = _lmfit.minimize(cost_fun, params, method = 'least_squares', scale_covar = False, jac = '3-point')
 		# slower but yields very similar results:
@@ -609,6 +611,87 @@ def nearest_Teq(
 	
 	wrapped_fun = _uc.wrap(fun)
 	Teq = _cd.uarray([wrapped_fun(_, *D47, *D48, *D47_calib_coefs, *D48_calib_coefs) for _ in range(N)])
+	
+	R = _cd.uarray(_np.concatenate((
+		D47 - D4x_calib_function(Teq.n, D47_calib_coefs, ignore_calib_uncertainties = ignore_calib_uncertainties),
+		D48 - D4x_calib_function(Teq.n, D48_calib_coefs, ignore_calib_uncertainties = ignore_calib_uncertainties),
+	)))
+	
+	p = _np.zeros((N,))
+	for k in range(N):
+		r = R[k::N]
+		z2 = r.m
+		p[k] = 1-_chi2.cdf(z2, 2)
+
+	return Teq, p
+
+
+def looping_nearest_Teq(
+	D47: _cd.uarray,
+	D48: _cd.uarray,
+	D47_calib_coefs: _cd.uarray = D47_calib_coefs,
+	D48_calib_coefs: _cd.uarray = D48_calib_coefs,
+	ignore_calib_uncertainties: bool = False,
+):
+	"""
+	Returns a `correldata.uarray` of T values which are closest (in the least-squares sense)
+	to each (Δ<sub>47</sub>, Δ<sub>48</sub>) pair, along with an array of corresponding
+	p-values taking into account errors in Δ<sub>47</sub> and Δ<sub>48</sub> (both of them
+	being potentially covariant) and those in the Δ<sub>47</sub> and Δ<sub>48</sub> calibrations.
+	
+	This is a faster version of this calculation, which returns an `uarray` with
+	reasonably accurate covariance between the `Teq` values, but also with all other variables.
+	For example, these `Teq` values are strongly correlated with the corresponding values of `D47`.
+	
+	However, the calculations treat each (Δ<sub>47</sub>, Δ<sub>48</sub>) pair as if it were
+	statistically independent of the other pairs.
+	"""
+
+	N = D47.size
+	N47 = D47_calib_coefs.size
+	N48 = D48_calib_coefs.size
+	Teq = D47 * 0
+	
+	for i in range(N):
+		def fun(*args): # args = (D47, D48, *D47_calib_coefs, *D48_calib_coefs)
+	
+			args = _np.array(args)
+			D47_n = args[0]
+			D48_n = args[1]
+			D47_calib_coefs_n = args[-N48-N47:-N48]
+			D48_calib_coefs_n = args[-N48:]
+				
+			params = _lmfit.Parameters()
+			a0, a2 = _D47_approx_calib_coefs
+			params.add('Ti', value = ((D47_n - a0) / a2)**-.5 - 273.15)
+			
+			D47_u = _cd.uarray([_uc.ufloat(D47_n, D47.s[i])])
+			D48_u = _cd.uarray([_uc.ufloat(D48_n, D48.s[i])])
+			D47_calib_coefs_u = _cd.uarray(_uc.correlated_values(D47_calib_coefs_n, D47_calib_coefs.covar))
+			D48_calib_coefs_u = _cd.uarray(_uc.correlated_values(D48_calib_coefs_n, D48_calib_coefs.covar))
+	
+			def cost_fun(
+				p,
+				ignore_calib_uncertainties = ignore_calib_uncertainties,
+			):
+				R = _cd.uarray(_np.concatenate((
+					D47_u - D4x_calib_function(p['Ti'], D47_calib_coefs_u, ignore_calib_uncertainties = ignore_calib_uncertainties),
+					D48_u - D4x_calib_function(p['Ti'], D48_calib_coefs_u, ignore_calib_uncertainties = ignore_calib_uncertainties),
+				)))
+				
+				invS = _np.linalg.inv(R.covar)
+				L = _cholesky(invS)
+		
+				return L @ R.n
+			
+			minresult = _lmfit.minimize(cost_fun, params, method = 'least_squares', scale_covar = False, jac = '3-point')
+			# slower but yields very similar results:
+			# minresult = _lmfit.minimize(cost_fun, params, method = 'powell', scale_covar = False)
+	
+			return minresult.params['Ti'].value
+		
+		wrapped_fun = _uc.wrap(fun)
+		Teq[i] = wrapped_fun(D47[i], D48[i], *D47_calib_coefs, *D48_calib_coefs)
 	
 	R = _cd.uarray(_np.concatenate((
 		D47 - D4x_calib_function(Teq.n, D47_calib_coefs, ignore_calib_uncertainties = ignore_calib_uncertainties),

@@ -11,15 +11,15 @@ p_cutoff = 0.05
 eq_color = (0,.5,.2)
 diseq_color = (1, 0, .4)
 
-N = 40
+N = 10
 
-X = _np.linspace(0.2, 0.7, N)
-Y = _np.linspace(0.25, 0.15, N)
+X = _np.linspace(0.2, 0.65, N)
+Y = _np.linspace(0.15, 0.25, N)
 X = uarray(_uc.correlated_values(X, _np.diag([.005**2]*N)))
 Y = uarray(_uc.correlated_values(Y, _np.diag([.015**2]*N)))
 
 print('Starting.')
-Teq, p = lazy_nearest_Teq(X, Y)
+Teq, p = looping_nearest_Teq(X, Y)
 print('Teq done.')
 Tp = projected_Teq(X, Y, slope)
 print('Tkp done.')
