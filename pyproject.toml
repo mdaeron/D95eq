@@ -33,7 +33,7 @@ macos = "12.7.5"
 D95thermo = { path = ".", editable = true }
 
 [tool.pixi.tasks]
-examples = {cmd = 'python examples.py', cwd ='examples' }
+examples = {cmd = 'python large_example.py', cwd ='examples' }
 coefs    = {cmd = 'python calib_coefs.py', cwd ='calib_coefs' }
 docs     = {cmd = 'python ../build_doc.py', cwd ='src' }
 test     = {cmd = 'python test.py', cwd ='test' }
