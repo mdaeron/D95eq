@@ -64,6 +64,9 @@ def _compute_D48_calib_coefficients(reprocess = False):
 	a4 = -7.423e8
 
 	if reprocess:
+
+		# M. Bernecker, pers. comm.
+		# after Fiebig et al. (2024) 10.1016/j.chemgeo.2024.122382
 		datastr = '''
 	    Sample,    D48, SE_D48,      T, SE_T, correl_T
 	     LGB-2, 0.2606, 0.0103,    7.9,  0.2, 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.
@@ -101,6 +104,7 @@ def _compute_D48_calib_coefficients(reprocess = False):
 
 		R.regress(overdispersion_scaling = True)	
 		b0, b1 = _uc.correlated_values(R.bfp.values(), R.bfp_CM)
+# 		print(_cd.data_string(dict(affine_coefs = _cd.uarray([b0, b1]))))
 	
 	else:
 		
