@@ -242,7 +242,7 @@ def to_pair_of_uarrays(
 	* `X`: x values
 	* `Y`: y values
 	* `CM`: covariance matrix of `(*X, *Y)`; not needed if elements of X and Y are of type
-		[`uncertainties.UFloat`](https://pythonhosted.org/uncertainties/tech_guide.html).
+		[`uncertainties.UFloat`](https://pythonhosted.org/uncertainties/tech_guide.html)
 		or if (`Xse`, `Yse`) are specified.
 	* `Xse`, `Yse`: SE of X and Y; not needed if elements of X and Y are of type
 		[`uncertainties.UFloat`](https://pythonhosted.org/uncertainties/tech_guide.html)
@@ -316,7 +316,7 @@ def to_uarray(
 	**Arguments**
 	* `X`: x values
 	* `CM`: covariance matrix of X; not needed if elements of X are of type
-		[`uncertainties.UFloat`](https://pythonhosted.org/uncertainties/tech_guide.html).
+		[`uncertainties.UFloat`](https://pythonhosted.org/uncertainties/tech_guide.html)
 		or if `Xse` is specified.
 	* `Xse`,: SE of X; not needed if elements of X are of type
 		[`uncertainties.UFloat`](https://pythonhosted.org/uncertainties/tech_guide.html)
@@ -370,7 +370,7 @@ def conf_ellipse(
 	**kwargs,
 ) -> tuple:
 	"""
-	Plot the joint `p`-level confidence ellipses for the elements of (`X`, `Y`),
+	Plot the joint *p*-level confidence ellipses for the elements of (X, Y),
 	and return a list of the `Ellipse` objects thus created.
 	
 	**Arguments**

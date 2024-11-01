@@ -29,9 +29,6 @@ conf_ellipse(X, Y, ec = 'k')
 T_ellipse(Teq[p >= p_cutoff], ec = eq_color, fc = (*eq_color, 0.2))
 T_ellipse(Tp[p < p_cutoff], ec = diseq_color, fc = (*diseq_color, 0.2))
 
-_ppl.show()
-exit()
-
 for x, y, t, pv in zip(X, Y, Tp, p):
 	if pv >= p_cutoff:
 		continue

@@ -37,10 +37,10 @@ for k, funTeq in enumerate((
 	
 	plot_D95_equilibrium()
 	
-	error_ellipses(X, Y, ec = 'k')
+	conf_ellipse(X, Y, ec = 'k')
 	
-	T_ellipses(Teq[p >= p_cutoff], ec = eq_color, fc = (*eq_color, 0.2))
-	T_ellipses(Tp[p < p_cutoff], ec = diseq_color, fc = (*diseq_color, 0.2))
+	T_ellipse(Teq[p >= p_cutoff], ec = eq_color, fc = (*eq_color, 0.2))
+	T_ellipse(Tp[p < p_cutoff], ec = diseq_color, fc = (*diseq_color, 0.2))
 	
 	for x, y, t in zip(X[p < p_cutoff], Y[p < p_cutoff], Tp[p < p_cutoff]):
 		v = _np.array([
