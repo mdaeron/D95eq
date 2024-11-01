@@ -35,7 +35,7 @@ from typing_extensions import Annotated as _Annotated
 
 #### Utility variables and functions ####
 
-_D47_approx_calib_coefs = _np.array([0.159502986, 38588.1545]) # computed from code in comments below
+_D47_approx_calib_coefs = [0.159502986, 38588.1545] # computed from code in comments below
 
 # from D47calib import OGLS23 as _OGLS23
 # from D47calib import D47calib as _D47calib
@@ -49,7 +49,7 @@ _D47_approx_calib_coefs = _np.array([0.159502986, 38588.1545]) # computed from c
 # 	degrees = [0,2],
 # )
 # 
-# _D47_approx_calib_coefs = _np.array([_D47_approx.bfp['a0'], _D47_approx.bfp['a2']])
+# _D47_approx_calib_coefs = [_D47_approx.bfp['a0'], _D47_approx.bfp['a2']]
 
 
 def _compute_D48_calib_coefficients(reprocess = False):
@@ -110,6 +110,8 @@ def _compute_D48_calib_coefficients(reprocess = False):
 		
 		# M. Bernecker, pers. comm.
 		# after Fiebig et al. (2024) 10.1016/j.chemgeo.2024.122382
+		# Caution: because Fiebig et al. ignored T uncertainties, these
+		# coefficeients have smaller uncertainties than those computed above.
 		b0, b1 = _uc.correlated_values(
 			[0.12135157920099604, 1.0379702801201238],
 			[[ 7.39697438e-06, -6.90467053e-05], [-6.90467053e-05,  1.46002771e-03]],
@@ -152,6 +154,8 @@ def D4x_calib_function(
 		else None
 	)
 
+	if D4x.ndim == 0:
+		return D4x.tolist().n if return_without_uncertainties else D4x.tolist()
 	return D4x.n if return_without_uncertainties else D4x
 
 
@@ -185,7 +189,6 @@ def D47_calib_function(
 		return_without_uncertainties = return_without_uncertainties,
 		ignore_calib_uncertainties = ignore_calib_uncertainties,
 	)
-
 
 # D48_calib_coefs = _compute_D48_calib_coefficients(reprocess = True)
 # print(_cd.data_string(
@@ -227,13 +230,87 @@ def D48_calib_function(
 
 #### Plotting functions ####
 
+def error_ellipse(
+	X: (_uc.UFloat | float),
+	Y: (_uc.UFloat | float),
+	p: float = 0.95,
+	CM: (_np.ndarray | None) = None,
+	Xse: (float | None) = None,
+	Yse: (float | None) = None,
+	ax: (_ppl.Axes | None) = None,
+	**kwargs,
+) -> tuple:
+	"""
+	Plot the joint `p`-level confidence ellipses for (`X`, `Y`),
+	and return the `Ellipse` object thus created.
+	
+	**Arguments**
+	* `X`, `Y`: X and Y values
+	* `p`: confidence level
+	* `CM`: covariance matrix of (X, Y); not needed if X and Y are of type
+		[`uncertainties.UFloat`](https://pythonhosted.org/uncertainties/tech_guide.html).
+		or if (`Xse`, `Yse`) are specified.
+	* `Xse`, `Yse`: SE of X and Y; not needed if X and Y are of type
+		[`uncertainties.UFloat`](https://pythonhosted.org/uncertainties/tech_guide.html)
+		or if `CM` is specified.
+	* `ax`: which instance of `matplotlib.axes.Axes` to draw in; use current axes if `ax` = `None`.
+	* `kwargs`: passed to `matplotlib.patches.Ellipse()`	
+	"""
+	
+	if type(X) is not type(Y):
+		raise TypeError(f'X ({type(X)}) and Y ({type(Y)}) must have the same type.')
+
+	if isinstance(X, _uc.UFloat):
+
+		if Xse is not None:
+			raise ValueError('Ambiguous: Xse is redundant because X is already an UFloat.')
+		if Yse is not None:
+			raise ValueError('Ambiguous: Yse is redundant because Y is already an UFloat.')
+		if CM is not None:
+			raise ValueError('Ambiguous: CM is redundant because X and Y are already UFloats.')
+
+		x, y = X, Y
+
+	else:
+
+		if CM is not None:
+			if Xse is not None:
+				raise ValueError('Ambiguous: Xse is redundant because CM is already specified.')
+			if Yse is not None:
+				raise ValueError('Ambiguous: Yse is redundant because CM is already specified.')
+
+			x, y = _uc.correlated_values(X, Y, CM)
+
+		else:
+
+			x, y = _uc.ufloat(X, Xse), _uc.ufloat(Y, Yse)
+
+	r2 = _chi2.ppf(p, 2)
+	kwargs = dict(fc = 'None', ec = 'k', lw = 0.7) | kwargs
+
+	val, vec = _eigh(_uc.covariance_matrix((x, y)))
+	width, height = 2 * (val[:, None] * r2)**0.5
+	angle = _np.degrees(_np.arctan2(*vec[::-1, 0]))
+
+	if ax is None:
+		ax = _ppl.gca()
+
+	return ax.add_patch(_Ellipse(
+			xy = (x.n, y.n),
+			width = width,
+			height = height,
+			angle = angle,
+			**kwargs,
+	))
+
+
 def error_ellipses(
 	X: _cd.uarray,
 	Y: _cd.uarray,
 	p: float = 0.95,
 	ax: (_ppl.Axes | None) = None,
 	**kwargs,
-) -> list:
+) -> tuple:
 	"""
 	Plot the joint `p`-level confidence ellipses for the elements of (`X`, `Y`),
 	and return a list of the `Ellipse` objects thus created.
@@ -246,32 +323,45 @@ def error_ellipses(
 	* `kwargs`: passed to `matplotlib.patches.Ellipse()`	
 	"""
 
-	kwargs = dict(fc = 'None', ec = 'k', lw = 0.7) | kwargs
-
-	r2 = _chi2.ppf(p, 2)
 	out = []
 
 	for x, y in zip(X, Y):
+		out.append(error_ellipse(x, y, p = p, ax = ax, **kwargs))
 
-		val, vec = _eigh(_uc.covariance_matrix((x, y)))
-		width, height = 2 * (val[:, None] * r2)**0.5
-		angle = _np.degrees(_np.arctan2(*vec[::-1, 0]))
+	return (*out,)
 
-		if ax is None:
-			ax = _ppl.gca()
 
-		out.append(
-			ax.add_patch(
-				_Ellipse(
-					xy = (x.n, y.n),
-					width = width,
-					height = height,
-					angle = angle,
-					**kwargs,
-				)
-			)
-		)
-	return out
+def T_ellipse(
+	T: (float | _uc.UFloat),
+	p: float = 0.95,
+	D47_calib_function = D47_calib_function,
+	D48_calib_function = D48_calib_function,
+	ax: (_ppl.Axes | None) = None,
+	**kwargs,
+) -> list:
+	"""
+	Plot the joint `p`-level confidence ellipse in (Δ<sub>47</sub>, Δ<sub>48</sub>)
+	space for a given temperature and return the `Ellipse` object thus created.
+
+	**Arguments**
+	* `T`: temperature
+	* `p`: confidence level
+	* `D47_calib_function`: specify Δ<sub>47</sub> calibration
+	(yielding an `uarray` of Δ<sub>47</sub> values accounting
+	for calibration uncertainties as well as uncertainties in `T`)
+	* `D48_calib_function`: specify Δ<sub>48</sub> calibration
+	(yielding an `uarray` of Δ<sub>48</sub> values accounting
+	for calibration uncertainties as well as uncertainties in `T`)
+	* `ax`: which instance of `matplotlib.axes.Axes` to draw in; use current axes if `ax` = `None`.
+	* `kwargs`: passed to `matplotlib.patches.Ellipse()`	
+	"""
+	return error_ellipse(
+		D47_calib_function(T),
+		D48_calib_function(T),
+		p = p,
+		ax = ax,
+		**kwargs,
+	)
 
 
 def T_ellipses(
