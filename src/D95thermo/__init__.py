@@ -228,135 +228,6 @@ def D48_calib_function(
 	)
 
 
-def to_pair_of_uarrays(
-	X: (_cd.uarray | _np.ndarray | _uc.UFloat | float),
-	Y: (_cd.uarray | _np.ndarray | _uc.UFloat | float) = None,
-	CM: (_np.ndarray | None) = None,
-	Xse: (_np.ndarray | float | None) = None,
-	Yse: (_np.ndarray | float | None) = None,
-) -> tuple:
-	"""
-	Convert (X, Y) to a pair of uarrays.
-	
-	**Arguments**
-	* `X`: x values
-	* `Y`: y values
-	* `CM`: covariance matrix of `(*X, *Y)`; not needed if elements of X and Y are of type
-		[`uncertainties.UFloat`](https://pythonhosted.org/uncertainties/tech_guide.html)
-		or if (`Xse`, `Yse`) are specified.
-	* `Xse`, `Yse`: SE of X and Y; not needed if elements of X and Y are of type
-		[`uncertainties.UFloat`](https://pythonhosted.org/uncertainties/tech_guide.html)
-		or if `CM` is specified.
-	
-	If neither `CM`, `Xse` nor `Yse` are specified, assume SE = 0.
-	"""
-	
-	if type(X) is not type(Y):
-		raise TypeError(f'X ({type(X)}) and Y ({type(Y)}) must have the same type.')
-
-	if isinstance(X, _cd.uarray):
-		return (X, Y)
-
-	if isinstance(X, _np.ndarray):
-		if (
-			_np.all([isinstance(_, _uc.UFloat) for _ in X])
-			and
-			_np.all([isinstance(_, _uc.UFloat) for _ in Y])
-		):
-			return _cd.uarray(X), _cd.uarray(Y)
-		else:
-			X = X.astype(float)
-			Y = Y.astype(float)
-			
-			if CM is not None:
-				if Xse is not None: raise ValueError('Too much information: Xse is redundant because CM is already specified.')
-				if Yse is not None: raise ValueError('Too much information: Yse is redundant because CM is already specified.')
-
-			if CM is None:
-				if Xse is None:
-					Xse = X * 0
-				if Yse is None:
-					Yse = Y * 0
-
-				CMx = _np.diag((*Xse,))**2
-				CMy = _np.diag((*Yse,))**2			
-				return _cd.uarray(_uc.correlated_values(X, CMx)), _cd.uarray(_uc.correlated_values(Y, CMy))
-
-			else:
-				XY = _cd.uarray(_uc.correlated_values([*X, *Y], CM))
-				return XY[:X.size], XY[X.size:]
-				
-	if isinstance(X, _uc.UFloat):
-		return _cd.uarray([X]), _cd.uarray([Y])
-
-	if isinstance(X, (float, int)):
-
-		if CM is not None:
-			if Xse is not None: raise ValueError('Too much information: Xse is redundant because CM is already specified.')
-			if Yse is not None: raise ValueError('Too much information: Yse is redundant because CM is already specified.')
-
-		if CM is None:
-			if Xse is None: raise ValueError('Not enough information: specify either CM or Xse.')
-			if Yse is None: raise ValueError('Not enough information: specify either CM or Yse.')				
-
-			CM = _np.diag([Xse, Yse])**2
-
-		XY = _cd.uarray(_uc.correlated_values([X, Y], CM))
-		return XY[:1], XY[1:]
-
-
-def to_uarray(
-	X: (_cd.uarray | _np.ndarray | _uc.UFloat | float),
-	CM: (_np.ndarray | None) = None,
-	Xse: (_np.ndarray | float | None) = None,
-) -> _cd.uarray:
-	"""
-	Convert X to uarray type.
-	
-	**Arguments**
-	* `X`: x values
-	* `CM`: covariance matrix of X; not needed if elements of X are of type
-		[`uncertainties.UFloat`](https://pythonhosted.org/uncertainties/tech_guide.html)
-		or if `Xse` is specified.
-	* `Xse`,: SE of X; not needed if elements of X are of type
-		[`uncertainties.UFloat`](https://pythonhosted.org/uncertainties/tech_guide.html)
-		or if `CM` is specified.
-	
-	If neither `CM` nor `Xse` are specified, assume SE = 0.
-	"""
-	
-	if isinstance(X, _cd.uarray):
-		return X
-
-	if isinstance(X, _np.ndarray):
-		if _np.all([isinstance(_, _uc.UFloat) for _ in X]):
-			return _cd.uarray(X)
-		else:
-			X = X.astype(float)
-			
-			if CM is not None:
-				if Xse is not None: raise ValueError('Too much information: Xse is redundant because CM is already specified.')
-
-			if CM is None:
-				if Xse is None:
-					Xse = X * 0
-
-				CM = _np.diag((*Xse,))**2
-
-			return _cd.uarray(_uc.correlated_values(X, CM))
-				
-	if isinstance(X, _uc.UFloat):
-		return _cd.uarray([X])
-
-	if isinstance(X, (float, int)):
-
-		if CM is not None:
-			if Xse is not None: raise ValueError('Too much information: Xse is redundant because CM is already specified.')
-			Xse = CM[0,0]**0.5
-
-		return _cd.uarray([_uc.ufloat(X, Xse)])
-
-
 #### Plotting functions ####
 
 def conf_ellipse(
@@ -397,7 +268,7 @@ def conf_ellipse(
 	out = []
 
 	for x, y in zip(
-		*to_pair_of_uarrays(X, Y, CM = CM, Xse = Xse, Yse = Yse)
+		*_cd.as_pair_of_uarrays(X, Y, CM = CM, Xse = Xse, Yse = Yse)
 	):
 		val, vec = _eigh(_uc.covariance_matrix((x, y)))
 		width, height = 2 * (val[:, None] * r2)**0.5
@@ -445,7 +316,7 @@ def T_ellipse(
 	* `ax`: which instance of `matplotlib.axes.Axes` to draw in; use current axes if `ax` = `None`.
 	* `kwargs`: passed to `matplotlib.patches.Ellipse()`	
 	"""
-	_T = to_uarray(T, CM = CM, Xse = Tse)
+	_T = _cd.as_uarray(T, CM = CM, Xse = Tse)
 	return conf_ellipse(
 		D47_calib_function(_T),
 		D48_calib_function(_T),

@@ -23,7 +23,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/0a/0d/2c6aaab67ac566d76322e87827d707214c5f6ffb5a4fcd456a8633da1788/asteval-1.0.5-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/2e/d53fa4befbf2cfa713304affc7ca780ce4fc1fd8710527771b58311a3229/click-8.1.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e3/04/33351c5d5108460a8ce6d512307690b023f0cfcad5899499f5c83b9d63b1/contourpy-1.3.0-cp312-cp312-macosx_11_0_arm64.whl
-      - pypi: https://files.pythonhosted.org/packages/e1/a3/b750e53db15a60c9caf8f42212d38bea4f739fc6f0d648f53c83922a0139/correldata-1.5.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/0a/30/cbafb139e0c62d6b350443dc6cf2783f6c26d6734b7a7b2ca4599ef713c0/correldata-1.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e7/05/c19819d5e3d95294a6f5947fb9b9629efb316b96de511b418c53d245aae6/cycler-0.12.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/46/d1/e73b6ad76f0b1fb7f23c35c6d95dbc506a9c8804f43dda8cb5b0fa6331fd/dill-0.3.9-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/67/9d/cfbfe36e5061a8f68b154454ba2304eb01f40d4ba9b63e41d9058909baed/fonttools-4.54.1-cp312-cp312-macosx_11_0_arm64.whl
@@ -99,7 +99,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/0a/0d/2c6aaab67ac566d76322e87827d707214c5f6ffb5a4fcd456a8633da1788/asteval-1.0.5-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/00/2e/d53fa4befbf2cfa713304affc7ca780ce4fc1fd8710527771b58311a3229/click-8.1.7-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/aa/45/5a28a3570ff6218d8bdfc291a272a20d2648104815f01f0177d103d985e1/contourpy-1.3.0-cp313-cp313-macosx_11_0_arm64.whl
-      - pypi: https://files.pythonhosted.org/packages/e1/a3/b750e53db15a60c9caf8f42212d38bea4f739fc6f0d648f53c83922a0139/correldata-1.5.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/0a/30/cbafb139e0c62d6b350443dc6cf2783f6c26d6734b7a7b2ca4599ef713c0/correldata-1.6.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e7/05/c19819d5e3d95294a6f5947fb9b9629efb316b96de511b418c53d245aae6/cycler-0.12.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/46/d1/e73b6ad76f0b1fb7f23c35c6d95dbc506a9c8804f43dda8cb5b0fa6331fd/dill-0.3.9-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/03/03/05d4b22d1a674d066380657f60bbc0eda2d206446912e676d1a33a206878/fonttools-4.54.1-cp313-cp313-macosx_11_0_arm64.whl
@@ -321,9 +321,9 @@ packages:
   requires_python: '>=3.9'
 - kind: pypi
   name: correldata
-  version: 1.5.0
-  url: https://files.pythonhosted.org/packages/e1/a3/b750e53db15a60c9caf8f42212d38bea4f739fc6f0d648f53c83922a0139/correldata-1.5.0-py3-none-any.whl
-  sha256: 611f0781516a5096c6d1ae416848151db3e8e85757b9220cc5eff23240493391
+  version: 1.6.0
+  url: https://files.pythonhosted.org/packages/0a/30/cbafb139e0c62d6b350443dc6cf2783f6c26d6734b7a7b2ca4599ef713c0/correldata-1.6.0-py3-none-any.whl
+  sha256: 9de98a8930121bda8598d96dde96c97a985a7a32da0b52b7c39f60d5fb0d4736
   requires_dist:
   - numpy>=2.1.1
   - uncertainties>=3.2.2
@@ -346,13 +346,13 @@ packages:
   name: d95thermo
   version: 0.9.0
   path: .
-  sha256: db38859f258ab0523c530d29056ec99e2e63f3f1165424234576760bb707cbd6
+  sha256: e3d8228edd82af3b85c065737613b0fc04cb1ef42d28bf3cb2abf63dbc6ef70c
   requires_dist:
   - lmfit>=1.3.2
   - numpy>=2.1.1
   - ogls>=1.0
   - uncertainties>=3.2.2
-  - correldata>=1.5.0,<2
+  - correldata>=1.6.0,<2
   - typer>=0.12.5,<0.13
   requires_python: '>=3.11'
   editable: true
