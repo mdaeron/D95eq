@@ -529,6 +529,8 @@ def nearest_Teq(
 	D47_calib_coefs: _cd.uarray = D47_calib_coefs,
 	D48_calib_coefs: _cd.uarray = D48_calib_coefs,
 	ignore_calib_uncertainties: bool = False,
+	compute_pdf: bool = False,
+	N_qmc: int = 1000,
 ):
 	"""
 	Returns a `correldata.uarray` of T values, each of which is the closest (in the OGLS sense)
@@ -547,7 +549,32 @@ def nearest_Teq(
 	N47 = D47_calib_coefs.size
 	N48 = D48_calib_coefs.size
 	Teq = D47 * 0
+
+	_np.set_printoptions(threshold = _np.inf)
+	_np.set_printoptions(linewidth = _np.inf)
 	
+	
+	if compute_pdf:
+
+		from scipy.stats import qmc
+		from tqdm import trange
+
+		input_params = _cd.uarray([
+			*D47,
+			*D48,
+			*D47_calib_coefs,
+			*D48_calib_coefs,
+		])
+
+		qmc_dist = qmc.MultivariateNormalQMC(
+			mean = input_params.n*0,
+			cov = input_params.cor,
+		)
+		qmc_draws = input_params.n + qmc_dist.random(N_qmc) * input_params.s
+		
+		T_qmc = _cd.uarray(_np.zeros((N_qmc, N)))
+
+
 	for i in range(N):
 		def fun(*args): # args = (D47, D48, *D47_calib_coefs, *D48_calib_coefs)
 	
@@ -556,7 +583,7 @@ def nearest_Teq(
 			D48_n = args[1]
 			D47_calib_coefs_n = args[-N48-N47:-N48]
 			D48_calib_coefs_n = args[-N48:]
-				
+			
 			params = _lmfit.Parameters()
 			a0, a2 = _D47_approx_calib_coefs
 			params.add('Ti', value = ((D47_n - a0) / a2)**-.5 - 273.15)
@@ -588,7 +615,16 @@ def nearest_Teq(
 		
 		wrapped_fun = _uc.wrap(fun)
 		Teq[i] = wrapped_fun(D47[i], D48[i], *D47_calib_coefs, *D48_calib_coefs)
-	
+		
+		if compute_pdf:
+			for k in trange(N_qmc):
+				T_qmc[k,i] = fun(
+					qmc_draws[k,i],
+					qmc_draws[k,N+i],
+					*qmc_draws[k,-N47-N48:-N48],
+					*qmc_draws[k,-N48:],
+				)
+			
 	R = _cd.uarray(_np.concatenate((
 		D47 - D4x_calib_function(Teq.n, D47_calib_coefs, ignore_calib_uncertainties = ignore_calib_uncertainties),
 		D48 - D4x_calib_function(Teq.n, D48_calib_coefs, ignore_calib_uncertainties = ignore_calib_uncertainties),
@@ -600,6 +636,8 @@ def nearest_Teq(
 		z2 = r.m
 		p[k] = 1-_chi2.cdf(z2, 2)
 
+	if compute_pdf:
+		return Teq, p, T_qmc
 	return Teq, p
 
 

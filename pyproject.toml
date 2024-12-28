@@ -35,6 +35,7 @@ D95thermo = {path = ".", editable = true}
 
 [tool.pixi.tasks]
 examples = {cmd = 'python example.py; python large_example.py', cwd ='examples'}
+qmc      = {cmd = 'python example_qmc.py', cwd ='examples'}
 coefs    = {cmd = 'python calib_coefs.py', cwd ='calib_coefs'}
 test     = {cmd = 'python test.py', cwd ='test' }
 
@@ -51,3 +52,6 @@ publish = {cmd = 'flit publish'}
 
 [tool.pixi.environments]
 dev = ["dev"]
+
+[tool.pixi.dependencies]
+tqdm = ">=4.67.1,<5"
