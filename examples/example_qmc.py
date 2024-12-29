@@ -16,9 +16,35 @@ data = read_data_from_file('example_data.csv')
 X = data['D47']
 Y = data['D48']
 
-Teq, p, T_qmc = nearest_Teq(X, Y, compute_pdf = True, N_qmc = 2**13)
+Tp, Tp_qmc = projected_Teq(X, Y, slope, estimate_pdf = True, N_qmc = 2**16)
+Teq, p, T_qmc = nearest_Teq(X, Y, estimate_pdf = True, N_qmc = 2**13)
 
-for sample, t, tqmc in zip(data['Sample'], Teq, T_qmc.T):
+for sample, t, tqmc, tp, tpqmc in zip(data['Sample'], Teq, T_qmc.T, Tp, Tp_qmc.T):
+
+	fig = _ppl.figure()
+	_ppl.hist(
+		tpqmc,
+		bins = 50,
+		density = True,
+		histtype = 'stepfilled',
+		color = (1,.8,0,0.5),
+	)
+	_ppl.hist(
+		tpqmc,
+		bins = 50,
+		density = True,
+		histtype = 'step',
+		color = (1,.8,0),
+	)
+	x1, x2, y1, y2 = _ppl.axis()
+	xi = _np.linspace(x1, x2, 1001)
+	_ppl.plot(xi, stats.norm.pdf(xi, tp.n, tp.s), 'k-', dashes = (6,2,2,2))
+	_ppl.axis([x1, x2, y1, y2])
+	_ppl.xlabel('$T_{p}$   [°C]')
+	_ppl.ylabel('PDF')
+	_ppl.yticks([])
+	fig.savefig(f'pdf_{sample}_projected.pdf')
+
 	fig = _ppl.figure()
 	_ppl.hist(
 		tqmc,

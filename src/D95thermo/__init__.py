@@ -529,7 +529,7 @@ def nearest_Teq(
 	D47_calib_coefs: _cd.uarray = D47_calib_coefs,
 	D48_calib_coefs: _cd.uarray = D48_calib_coefs,
 	ignore_calib_uncertainties: bool = False,
-	compute_pdf: bool = False,
+	estimate_pdf: bool = False,
 	N_qmc: int = 1000,
 ):
 	"""
@@ -554,7 +554,7 @@ def nearest_Teq(
 	_np.set_printoptions(linewidth = _np.inf)
 	
 	
-	if compute_pdf:
+	if estimate_pdf:
 
 		from scipy.stats import qmc
 		from tqdm import trange
@@ -616,7 +616,7 @@ def nearest_Teq(
 		wrapped_fun = _uc.wrap(fun)
 		Teq[i] = wrapped_fun(D47[i], D48[i], *D47_calib_coefs, *D48_calib_coefs)
 		
-		if compute_pdf:
+		if estimate_pdf:
 			for k in trange(N_qmc):
 				T_qmc[k,i] = fun(
 					qmc_draws[k,i],
@@ -636,7 +636,7 @@ def nearest_Teq(
 		z2 = r.m
 		p[k] = 1-_chi2.cdf(z2, 2)
 
-	if compute_pdf:
+	if estimate_pdf:
 		return Teq, p, T_qmc
 	return Teq, p
 
@@ -807,6 +807,8 @@ def projected_Teq(
 	D47_calib_coefs: _cd.uarray = D47_calib_coefs,
 	D48_calib_coefs: _cd.uarray = D48_calib_coefs,
 	ignore_calib_uncertainties: bool = False,
+	estimate_pdf: bool = False,
+	N_qmc: int = 1000,
 ):
 
 	D47 = _cd.uarray(D47)
@@ -815,7 +817,29 @@ def projected_Teq(
 	N47c = D47_calib_coefs.size
 	N48c = D48_calib_coefs.size
 	T = D47 * 0
-	for k in range(N):
+
+	if estimate_pdf:
+
+		from scipy.stats import qmc
+		from tqdm import trange
+
+		input_params = _cd.uarray([
+			*D47,
+			*D48,
+			kinetic_slope,
+			*D47_calib_coefs,
+			*D48_calib_coefs,
+		])
+
+		qmc_dist = qmc.MultivariateNormalQMC(
+			mean = input_params.n*0,
+			cov = input_params.cor,
+		)
+		qmc_draws = input_params.n + qmc_dist.random(N_qmc) * input_params.s
+		
+		T_qmc = _cd.uarray(_np.zeros((N_qmc, N)))
+
+	for i in range(N):
 
 		# function to solve
 		def fun(t, *args): # args = (D47, D48, kinetic_slope, *D47_calib_coefs, *D48_calib_coefs)
@@ -839,14 +863,26 @@ def projected_Teq(
 		
 		wg = _uc.wrap(g)
 
-		T[k] = wg(
-			D47[k],
-			D48[k],
+		T[i] = wg(
+			D47[i],
+			D48[i],
 			kinetic_slope,
 			*D47_calib_coefs,
 			*D48_calib_coefs,
 		)
 		
+		if estimate_pdf:
+			for k in trange(N_qmc):
+				T_qmc[k,i] = wg(
+					qmc_draws[k,i],
+					qmc_draws[k,N+i],
+					qmc_draws[k,N*2],
+					*qmc_draws[k,-N47c-N48c:-N48c],
+					*qmc_draws[k,-N48c:],
+				)
+
+	if estimate_pdf:
+		return T, T_qmc
 	return T
 
 	
