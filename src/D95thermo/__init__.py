@@ -9,11 +9,11 @@ Estimate carbonate formation temperatures from dual clumped isotope measurements
 
 __author__    = 'Mathieu Daëron'
 __contact__   = 'mathieu@daeron.fr'
-__copyright__ = 'Copyright (c) 2024 Mathieu Daëron'
+__copyright__ = 'Copyright (c) 2025 Mathieu Daëron'
 __license__   = 'MIT License - https://opensource.org/licenses/MIT'
-__date__      = '2024-10-15'
-__version__   = '0.9.0'
+__date__      = '2026-01-29'
 
+from .__version__ import __version__ as __version__
 
 import sys
 import numpy as _np
@@ -31,6 +31,7 @@ from scipy.linalg import eigh as _eigh
 from scipy.linalg import cholesky as _cholesky
 from scipy.optimize import fsolve as _fsolve
 from typing_extensions import Annotated as _Annotated
+from typer import rich_utils as _rich_utils
 
 
 #### Utility variables and functions ####
@@ -278,8 +279,8 @@ def conf_ellipse(
 			ax.add_patch(
 				_Ellipse(
 					xy = (x.n, y.n),
-					width = width,
-					height = height,
+					width = width.item(),
+					height = height.item(),
 					angle = angle,
 					**kwargs,
 				)
@@ -934,7 +935,7 @@ def save_Teq_report(
 				fid.write(sep.join([f'{Tcm[j,k]:{fmt_cm}}' for j in range(N)]))
 
 
-_typer.rich_utils.STYLE_HELPTEXT = ''
+_rich_utils.STYLE_HELPTEXT = ''
 
 __app = _typer.Typer(
 	add_completion = False,

@@ -1,19 +1,15 @@
 # 1. Installation
 
-## 1.1 Library
+## 1.1 Recommended method
 
-This should do the trick:
+The recommended way is to use via `uv` ([https://docs.astral.sh/uv]()).
 
-```bash
-pip install D95thermo
-```
+If you only want to run the command-line interface (CLI): after installing `uv`, this should be as simple as `uvx D95thermo` or `uv tool install D95thermo`.
 
-## 1.2 Only install command-line interface using `pipx`
+If you want to import `D95thermo` in some Python code, once you are within a `uv` project (`uv init`), you can install the module with `uv add D95thermo`.
 
-If you only want to install the CLI, one easy option is to do so using `pipx`:
+After installation, open a new shell window and try `D95thermo --help`.
 
-```sh
-pipx install D95thermo
-```
+## 1.2 Other methods
 
-Then reopen a shell window and try `D95thermo --help`.
+You can of course install globally via `pip` (`pip install D95thermo`), or only install the CLI using `pipx` (`pipx install D95thermo`).
