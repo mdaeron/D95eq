@@ -33,6 +33,7 @@ from scipy.optimize import fsolve as _fsolve
 from numpy.typing import ArrayLike
 from typing_extensions import Annotated as _Annotated
 from typer import rich_utils as _rich_utils
+from scipy.interpolate import interp1d as _interp1d
 
 
 #### Utility variables and functions ####
@@ -254,6 +255,9 @@ class Engine():
 		self,
 		D47_coefs: (_cd.uarray | ArrayLike | None) = None,
 		D48_coefs: (_cd.uarray | ArrayLike | None) = None,
+		D47min_interp: float = 0.182,
+		D47max_interp: float = 0.786,
+		N_interp: float = 303,
 	):
 		"""
 		**Arguments**
@@ -266,6 +270,8 @@ class Engine():
 
 		self.D48_coefs = Engine.D48_calib_coefs if D48_coefs is None else D48_coefs
 		"""The Δ<sub>48</sub> calibration coefficients used by this `Engine` instance"""
+
+		self._interpolated_D48_as_function_of_D47 = self._interpolate_D48_as_function_of_D47(D47min_interp, D47max_interp, N_interp)
 
 	def D47_calib_function(
 		self,
@@ -296,6 +302,29 @@ class Engine():
 	D47_calib_function.__doc__ = D4x_calib_function.__doc__
 	D48_calib_function.__doc__ = D4x_calib_function.__doc__
 
+	def _interpolate_D48_as_function_of_D47(
+		self,
+		D47min: float,
+		D47max: float,
+		N_interp: float,
+	):
+		a0, a2 = _D47_approx_calib_coefs
+		_D47i = _np.linspace(D47min, D47max, N_interp)
+		Ti = ((_D47i - a0) / a2)**-0.5 - 273.15
+		D47i, = self.D47_calib_function(Ti, return_without_uncertainties = True),
+		D48i, = self.D48_calib_function(Ti, return_without_uncertainties = True),
+		return _interp1d(D47i, D48i, kind = 'linear')
+
+	def interpolate_D48_as_function_of_D47(
+		self,
+		D47,
+	):
+		return self._interpolated_D48_as_function_of_D47(D47)
+
+	# def _D48_derivative_wrt_D47(
+	# 	D47coefs: _cd.uarray = D47_calib_coefs,
+	# 	D48coefs: _cd.uarray = D48_calib_coefs,
+	# ):
 
 	def T_ellipse(
 		self,
