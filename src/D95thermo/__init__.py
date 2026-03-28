@@ -561,6 +561,93 @@ class Engine():
 
 		return data, plot_elements
 
+	def nearest_D47eq(
+		self,
+		D47: _cd.uarray,
+		D48: _cd.uarray,
+		ignore_calib_uncertainties: bool = False,
+	):
+		"""
+		Returns a `correldata.uarray` of *equilibrium* Δ<sub>47</sub> values, each of which is
+		the closest (in the OGLS sense) to one (Δ<sub>47</sub>, Δ<sub>48</sub>) observation
+		considered independently of the others.
+
+		Also returns an array of corresponding p-values taking into account errors in Δ<sub>47</sub>
+		and Δ<sub>48</sub> (and any covariance between the two) as well as errors in the
+		Δ<sub>47</sub> and Δ<sub>48</sub> calibrations.
+
+		This is both the fastest and the strongly recommended version of this calculation.
+		It is expected to yield an `uarray` with reasonably accurate covariance between the
+		`D47eq` values, but also between `D47eq` and all other variables.
+		"""
+
+		N = D47.size
+		N47 = self.D47_coefs.size
+		N48 = self.D48_coefs.size
+		D47eq = D47 * 0
+
+		_np.set_printoptions(threshold = _np.inf)
+		_np.set_printoptions(linewidth = _np.inf)
+
+		for i in range(N):
+			def fun(*args): # args = (D47, D48, *D47_calib_coefs, *D48_calib_coefs)
+
+				args = _np.array(args)
+				D47_n = args[0]
+				D48_n = args[1]
+				D47_calib_coefs_n = args[-N48-N47:-N48]
+				D48_calib_coefs_n = args[-N48:]
+
+				params = _lmfit.Parameters()
+				a0, a2 = _D47_approx_calib_coefs
+				params.add('D47eq', value = D47_n)
+
+				D47_u = _cd.uarray([_uc.ufloat(D47_n, D47.s[i])])
+				D48_u = _cd.uarray([_uc.ufloat(D48_n, D48.s[i])])
+				D47_calib_coefs_u = _cd.uarray(_uc.correlated_values(D47_calib_coefs_n, self.D47_coefs.covar))
+				D48_calib_coefs_u = _cd.uarray(_uc.correlated_values(D48_calib_coefs_n, self.D48_coefs.covar))
+
+				def cost_fun(
+					p,
+					ignore_calib_uncertainties = ignore_calib_uncertainties,
+				):
+					if ignore_calib_uncertainties:
+						R = _cd.uarray(_np.concatenate((
+							D47_u - p['D47eq'],
+							D48_u - self.D48_as_function_of_D47(p['D47eq']),
+						)))
+					else: ####### This is where it is difficult. How do I get sigma for that value of D47 ???
+						pass
+
+					invS = _np.linalg.inv(R.covar)
+					L = _cholesky(invS)
+
+					return L @ R.n
+
+				minresult = _lmfit.minimize(cost_fun, params, method = 'least_squares', scale_covar = False, jac = '3-point')
+				# slower but yields very similar results:
+				# minresult = _lmfit.minimize(cost_fun, params, method = 'powell', scale_covar = False)
+
+				return minresult.params['D47eq'].value
+
+			wrapped_fun = _uc.wrap(fun)
+			D47eq[i] = wrapped_fun(D47[i], D48[i], *self.D47_coefs, *self.D48_coefs)
+
+		if ignore_calib_uncertainties:
+			R = _cd.uarray(_np.concatenate((
+				D47 - D47eq.n,
+				D48 - self.D48_as_function_of_D47(D47eq.n),
+			)))
+
+			p = _np.zeros((N,))
+			for k in range(N):
+				r = R[k::N]
+				z2 = r.m
+				p[k] = 1-_chi2.cdf(z2, 1)
+
+			return D47eq, p
+
+
 	#### Temperature estimates ####
 	def nearest_Teq(
 		self,
