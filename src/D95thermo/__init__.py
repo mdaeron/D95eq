@@ -345,12 +345,6 @@ class Engine():
 	):
 		return self._interpolated_derivative_of_D48_as_function_of_D47(D47)
 
-_interpolated_derivative_of_D48_as_function_of_D47
-	# def _D48_derivative_wrt_D47(
-	# 	D47coefs: _cd.uarray = D47_calib_coefs,
-	# 	D48coefs: _cd.uarray = D48_calib_coefs,
-	# ):
-
 	def T_ellipse(
 		self,
 		T: (_np.ndarray | _cd.uarray),
