@@ -11,7 +11,7 @@ __author__    = 'Mathieu Daëron'
 __contact__   = 'mathieu@daeron.fr'
 __copyright__ = 'Copyright (c) 2025 Mathieu Daëron'
 __license__   = 'MIT License - https://opensource.org/licenses/MIT'
-__date__      = '2026-01-29'
+__date__      = '2026-03-28'
 
 from .__version__ import __version__ as __version__
 
@@ -30,6 +30,7 @@ from scipy.stats import chi2 as _chi2
 from scipy.linalg import eigh as _eigh
 from scipy.linalg import cholesky as _cholesky
 from scipy.optimize import fsolve as _fsolve
+from numpy.typing import ArrayLike
 from typing_extensions import Annotated as _Annotated
 from typer import rich_utils as _rich_utils
 
@@ -126,111 +127,33 @@ def _compute_D48_calib_coefficients(reprocess = False):
 
 	return _cd.uarray([a0, a1, a2, a3, a4])
 
-
 #### Calibration variables and functions ####
-
 def D4x_calib_function(
-	T: (float | _uc.UFloat | _cd.uarray),
+	T: (float | _uc.UFloat | _cd.uarray | ArrayLike),
 	coefs: _cd.uarray,
 	return_without_uncertainties: bool = False,
 	ignore_calib_uncertainties: bool = False,
-) -> _np.ndarray:
+) -> (float | _uc.UFloat | _cd.uarray | ArrayLike):
 	"""
-	If `return_without_uncertainties` is False, returns one or more ufloat values.
-	In that case, if T is a ufloat or an array of ufloats, the resulting D4x ufloat
-	values will account for this source of uncertainty, but if T is a float or an
-	array of floats, the D4x ufloat values will only account for uncertainties in
-	the calibration coefficients. If `return_without_uncertainties` is True, returns
-	the D4x values without error propagation of any kind.
+	**Arguments**
+	* `T`: temperature(s) for which to compute Δ<sub>4x</sub>
+	* `return_without_uncertainties`: if `True`, returns D4x values without error propagation of any kind.
+	* `ignore_calib_uncertainties`: whether to propagate calibration uncertainties.
 	"""
 	degs = _np.arange(coefs.size)
 
 	D4x = (
-		_np.expand_dims(_cd.nv(coefs) if ignore_calib_uncertainties else coefs, 1)
-		* _np.expand_dims((T+273.15)**-1, 0)
-		** _np.expand_dims(degs, 1)
-	).sum(
-		axis = 0
-		if isinstance(T, _np.ndarray)
-		else None
-	)
+		_np.expand_dims(_cd.nv(coefs) if ignore_calib_uncertainties else coefs, 1) # shape = (coefs.size, 1)
+		* _np.expand_dims((T+273.15)**-1, 0)                                       # shape = (1, T.size)
+		** _np.expand_dims(degs, 1)                                                # shape = (coefs.size, 1)
+	).sum(axis = 0 if isinstance(T, _np.ndarray) else None)
 
 	if D4x.ndim == 0:
 		return D4x.tolist().n if return_without_uncertainties else D4x.tolist()
 	return D4x.n if return_without_uncertainties else D4x
 
 
-# D47_calib_coefs from OGLS23 (D47calib v1.3.1)
-D47_calib_coefs = _cd.read_data('''
-              coefs,                     SE,        correl,
-0.17437754366432887,   4.911105567257293e-3,    1.        , -0.93797005,  0.8865771
- -18.14215245127414,      5.632326472234856,   -0.93797005,  1.        , -0.98994249
-42.65722989162373e3,     1.27712751715908e3,    0.8865771 , -0.98994249,  1.
-'''[1:-1])['coefs']
-
-# D47_calib_coefs = _cd.uarray(_uc.correlated_values(D47_calib_coefs.n, D47_calib_coefs.covar / 1e6))
-
-def D47_calib_function(
-	T: (float | _uc.UFloat | _cd.uarray),
-	coefs: _cd.uarray = D47_calib_coefs,
-	return_without_uncertainties: bool = False,
-	ignore_calib_uncertainties: bool = False,
-):
-	"""
-	If `return_without_uncertainties` is False, returns one or more ufloat values.
-	In that case, if T is a ufloat or an array of ufloats, the resulting D47 ufloat
-	values will account for this source of uncertainty, but if T is a float or an
-	array of floats, the D47 ufloat values will only account for uncertainties in
-	the calibration coefficients. If `return_without_uncertainties` is True, returns
-	the D47 values without error propagation of any kind.
-	"""
-	return D4x_calib_function(
-		T = T,
-		coefs = coefs,
-		return_without_uncertainties = return_without_uncertainties,
-		ignore_calib_uncertainties = ignore_calib_uncertainties,
-	)
-
-# D48_calib_coefs = _compute_D48_calib_coefficients(reprocess = True)
-# print(_cd.data_string(
-# 	{'coefs': D48_calib_coefs},
-# 	float_format = 'z.12g',
-# 	correl_format = 'z.12f',
-# ))
-
-D48_calib_coefs = _cd.read_data('''
-         coefs,         SE_coefs,    correl_coefs,                ,                ,                ,
-0.121349237888, 0.00390048540724,  1.000000000000, -0.664181963395,  0.664181963395, -0.664181963395,  0.664181963395
- 6.22931985613,    0.32896761459, -0.664181963395,  1.000000000000, -1.000000000000,  1.000000000000, -1.000000000000
- -13481.983494,    711.977559735,  0.664181963395, -1.000000000000,  1.000000000000, -1.000000000000,  1.000000000000
- 9336714.66607,    493067.754224, -0.664181963395,  1.000000000000, -1.000000000000,  1.000000000000, -1.000000000000
--770413883.573,    40685214.9801,  0.664181963395, -1.000000000000,  1.000000000000, -1.000000000000,  1.000000000000
-'''[1:-1])['coefs']
-
-def D48_calib_function(
-	T: (float | _uc.UFloat | _cd.uarray),
-	coefs: _cd.uarray = D48_calib_coefs,
-	return_without_uncertainties: bool = False,
-	ignore_calib_uncertainties: bool = False,
-):
-	"""
-	If `return_without_uncertainties` is False, returns one or more ufloat values.
-	In that case, if T is a ufloat or an array of ufloats, the resulting D48 ufloat
-	values will account for this source of uncertainty, but if T is a float or an
-	array of floats, the D48 ufloat values will only account for uncertainties in
-	the calibration coefficients. If `return_without_uncertainties` is True, returns
-	the D48 values without error propagation of any kind.
-	"""
-	return D4x_calib_function(
-		T = T,
-		coefs = coefs,
-		return_without_uncertainties = return_without_uncertainties,
-		ignore_calib_uncertainties = ignore_calib_uncertainties,
-	)
-
-
 #### Plotting functions ####
-
 def conf_ellipse(
 	X: (_cd.uarray | _np.ndarray | _uc.UFloat | float),
 	Y: (_cd.uarray | _np.ndarray | _uc.UFloat | float) = None,
@@ -289,322 +212,490 @@ def conf_ellipse(
 
 	return (*out,)
 
-
-def T_ellipse(
-	T: (_np.ndarray | _cd.uarray),
-	p: float = 0.95,
-	CM: (_np.ndarray | None) = None,
-	Tse: (_np.ndarray | float | None) = None,
-	D47_calib_function = D47_calib_function,
-	D48_calib_function = D48_calib_function,
-	ax: (_ppl.Axes | None) = None,
-	**kwargs,
-) -> list:
+class Engine():
 	"""
-	Plot the joint `p`-level confidence ellipses in (Δ<sub>47</sub>, Δ<sub>48</sub>)
-	space, for temperatures equal to the elements of `T`, and return a list of the
-	`Ellipse` objects thus created.
-
-	**Arguments**
-	* `T`: `ndarray` or `uarray` of temperatures to plot
-	* `p`: confidence level
-	* `D47_calib_function`: specify Δ<sub>47</sub> calibration
-	(yielding an `uarray` of Δ<sub>47</sub> values accounting
-	for calibration uncertainties as well as uncertainties in `T`)
-	* `D48_calib_function`: specify Δ<sub>48</sub> calibration
-	(yielding an `uarray` of Δ<sub>48</sub> values accounting
-	for calibration uncertainties as well as uncertainties in `T`)
-	* `ax`: which instance of `matplotlib.axes.Axes` to draw in; use current axes if `ax` = `None`.
-	* `kwargs`: passed to `matplotlib.patches.Ellipse()`
+	Underlying engine to compute and plot nearest equilibrium temperatures and projected
+	temperatures based on a consistent pair of Δ<sub>47</sub>, Δ<sub>48</sub> calibrations.
 	"""
-	_T = _cd.as_uarray(T, CM = CM, Xse = Tse)
-	return conf_ellipse(
-		D47_calib_function(_T),
-		D48_calib_function(_T),
-		p = p,
-		ax = ax,
+
+	# D47_calib_coefs from OGLS23 (D47calib v1.3.1)
+	D47_calib_coefs = _cd.read_data('''
+              coefs,                     SE,        correl,
+0.17437754366432887,   4.911105567257293e-3,    1.        , -0.93797005,  0.8865771
+ -18.14215245127414,      5.632326472234856,   -0.93797005,  1.        , -0.98994249
+42.65722989162373e3,     1.27712751715908e3,    0.8865771 , -0.98994249,  1.
+'''[1:-1])['coefs']
+	"""
+	Default (OGLS23) Δ<sub>47</sub> calibration coefficients based on [Daëron & Vermeesch (2024)](https://doi.org/10.1016/j.chemgeo.2023.121881)
+	"""
+
+	# D48_calib_coefs reprocessed from Fiebig et al. (2024):
+	#
+	# D48_calib_coefs = _compute_D48_calib_coefficients(reprocess = True)
+	# print(_cd.data_string(
+	# 	{'coefs': D48_calib_coefs},
+	# 	float_format = 'z.12g',
+	# 	correl_format = 'z.12f',
+	# ))
+
+	D48_calib_coefs = _cd.read_data('''
+         coefs,         SE_coefs,    correl_coefs,                ,                ,                ,
+0.121349237888, 0.00390048540724,  1.000000000000, -0.664181963395,  0.664181963395, -0.664181963395,  0.664181963395
+ 6.22931985613,    0.32896761459, -0.664181963395,  1.000000000000, -1.000000000000,  1.000000000000, -1.000000000000
+ -13481.983494,    711.977559735,  0.664181963395, -1.000000000000,  1.000000000000, -1.000000000000,  1.000000000000
+ 9336714.66607,    493067.754224, -0.664181963395,  1.000000000000, -1.000000000000,  1.000000000000, -1.000000000000
+-770413883.573,    40685214.9801,  0.664181963395, -1.000000000000,  1.000000000000, -1.000000000000,  1.000000000000
+'''[1:-1])['coefs']
+	"""
+	Default Δ<sub>48</sub> calibration coefficients based on [Fiebig et al. (2024)](https://doi.org/10.1016/j.chemgeo.2024.122382)
+	"""
+
+	def __init__(
+		self,
+		D47_coefs: (_cd.uarray | ArrayLike | None) = None,
+		D48_coefs: (_cd.uarray | ArrayLike | None) = None,
+	):
+		"""
+		**Arguments**
+		* `D47_coefs`: `ndarray` or `uarray` of coefficients to use instead of default ones, ordered as (a0, a1, a2...)
+		* `D48_coefs`: `ndarray` or `uarray` of coefficients to use instead of default ones, ordered as (a0, a1, a2...)
+		"""
+
+		self.D47_coefs = Engine.D47_calib_coefs if D47_coefs is None else D47_coefs
+		"""The Δ<sub>47</sub> calibration coefficients used by this `Engine` instance"""
+
+		self.D48_coefs = Engine.D48_calib_coefs if D48_coefs is None else D48_coefs
+		"""The Δ<sub>48</sub> calibration coefficients used by this `Engine` instance"""
+
+	def D47_calib_function(
+		self,
+		T: (float | _uc.UFloat | _cd.uarray),
+		return_without_uncertainties: bool = False,
+		ignore_calib_uncertainties: bool = False,
+	):
+		return D4x_calib_function(
+			T = T,
+			coefs = self.D47_coefs,
+			return_without_uncertainties = return_without_uncertainties,
+			ignore_calib_uncertainties = ignore_calib_uncertainties,
+		)
+
+	def D48_calib_function(
+		self,
+		T: (float | _uc.UFloat | _cd.uarray),
+		return_without_uncertainties: bool = False,
+		ignore_calib_uncertainties: bool = False,
+	):
+		return D4x_calib_function(
+			T = T,
+			coefs = self.D48_coefs,
+			return_without_uncertainties = return_without_uncertainties,
+			ignore_calib_uncertainties = ignore_calib_uncertainties,
+		)
+
+	D47_calib_function.__doc__ = D4x_calib_function.__doc__
+	D48_calib_function.__doc__ = D4x_calib_function.__doc__
+
+
+	def T_ellipse(
+		self,
+		T: (_np.ndarray | _cd.uarray),
+		p: float = 0.95,
+		CM: (_np.ndarray | None) = None,
+		Tse: (_np.ndarray | float | None) = None,
+		ax: (_ppl.Axes | None) = None,
 		**kwargs,
-	)
+	) -> list:
+		"""
+		Plot the joint `p`-level confidence ellipses in (Δ<sub>47</sub>, Δ<sub>48</sub>)
+		space, for temperatures equal to the elements of `T`, and return a list of the
+		`Ellipse` objects thus created.
 
-
-def plot_D95_equilibrium(
-	Tmin: float = 0.,
-	Tmax: float = 1000.,
-	NT: int = 101,
-	Tmarkers: _np.typing.ArrayLike = [0, 25, 100, 250, 1000],
-	kwargs_Tmarkers: dict = {},
-	show_Tmarker_labels: bool = True,
-	kwargs_Tmarker_labels: dict = {},
-	show_Tmarker_ellipses: bool = False,
-	kwargs_Tmarker_ellipses: dict = {},
-	show_eqline: bool = True,
-	kwargs_eqline: dict = {},
-	show_D47ci: bool = True,
-	kwargs_D47ci: dict = {},
-	show_D48ci: bool = True,
-	kwargs_D48ci: dict = {},
-	ci_pvalue: float = 0.95,
-	ax: (_ppl.Axes | None) = None,
-	xlabel: str = '$Δ_{47}$   [‰]',
-	ylabel: str = '$Δ_{48}$   [‰]',
-	lw: float = 0.7,
-) -> (dict, dict):
-	"""
-	Plot a thermodynamic equilibrium curve in (Δ<sub>47</sub>, Δ<sub>48</sub>) space
-	as a function of temperature.
-
-	**Arguments**
-	* `Tmin`: minimum T to plot
-	* `Tmax`: maximum T to plot
-	* `NT`: number of steps in equilibrium curve (interpolated at constant steps in 1/T<sup>2</sup> space)
-	* `Tmarkers`: T markers to add along the curve
-	* `kwargs_Tmarkers`: passed to `plot()` when plotting T markers
-	* `show_Tmarker_labels`: whether to add T labels to T markers
-	* `kwargs_Tmarker_labels`: passed to `text()` when plotting T markers
-	* `show_Tmarker_ellipses`: whether to add confidence ellipses to T markers
-	* `kwargs_Tmarker_ellipses`: passed to `T_ellipses()` when plotting T marker ellipses
-	* `show_eqline`: whether to plot the equilibrium curve itself
-	* `kwargs_eqline`: passed to `plot()` when plotting the equilibrium curve
-	* `show_D47ci`: whether to plot the Δ<sub>47</sub> confidence band of the equilibrium curve
-	* `kwargs_D47ci`: passed to `fill_betweenx()` when plotting the Δ<sub>47</sub> confidence band
-	* `show_D48ci`: whether to plot the Δ<sub>48</sub> confidence band of the equilibrium curve
-	* `kwargs_D48ci`: passed to `fill_betweenx()` when plotting the Δ<sub>48</sub> confidence band
-	* `ci_pvalue`: confidence level for the Δ<sub>47</sub> and Δ<sub>48</sub> confidence band
-	* `ax`: which instance of `matplotlib.axes.Axes` to draw in; use current axes if `ax` = `None`.
-	* `xlabel`: string to pass to `xlabel()`
-	* `ylabel`: string to pass to `ylabel()`
-	* `lw`: default line width for most plot elements
-
-	**Returns**
-	* `data`: a dict of the T, Δ<sub>47</sub> and Δ<sub>48</sub> values generated for this plot:
-		- `Te`  : temperature interpolated along the equilibrium curve
-		- `D47e`: Δ<sub>47</sub> interpolated along the equilibrium curve
-		- `D48e`: Δ<sub>48</sub> interpolated along the equilibrium curve
-		- `Tm`  : temperature of T markers
-		- `D47m`: Δ<sub>47</sub> of T markers
-		- `D48m`: Δ<sub>48</sub> of T markers
-
-	* `plot_elements`: a dict of the `Axes` elements generated for this plot:
-		- `eqline`: `Line2D` of the equilibrium curve
-		- `D47ci`: `PolyCollection` of the Δ<sub>47</sub> confidence band
-		- `D48ci`: `PolyCollection` of the Δ<sub>48</sub> confidence band
-		- `Tm`: `Line2D` of the T markers
-		- `Tme`: list of `Ellipse` objects for the T marker ellipses
-		- `Tml`: list of `Text` objects for the T marker labels
-	"""
-
-	default_kwargs_eqline = dict(
-		marker = 'None',
-		ls = '-',
-		color = 'k',
-		lw = lw,
-	)
-	default_kwargs_D48ci = dict(
-		color = 'k',
-		lw = 0,
-		alpha = 0.15,
-	)
-	default_kwargs_D47ci = dict(
-		color = 'k',
-		lw = 0,
-		alpha = 0.15,
-	)
-	default_kwargs_Tmarkers = dict(
-		ls = 'None',
-		marker = 'o',
-		ms = 4,
-		mfc = 'w',
-		mec = 'k',
-		mew = lw,
-	)
-	default_kwargs_Tmarker_ellipses = dict(
-		fc = 'None',
-		ec = 'k',
-		lw = lw,
-	)
-	default_kwargs_Tmarker_errorbars = dict(
-		ecolor = 'k',
-		elinewidth = 0.7,
-		capthick = 0.7,
-		capsize = 3,
-		ls = 'None',
-		marker = 'None',
-	)
-	default_kwargs_Tmarker_labels = dict(
-		size = 8,
-		va = 'center',
-		ha = 'left',
-		linespacing = 3,
-	)
-
-	plot_elements = {}
-
-	Ti = _np.linspace(
-		(Tmin + 273.15)**-2,
-		(Tmax + 273.15)**-2,
-		NT
-	)**-0.5 - 273.15
-
-	Tmarkers = _np.array([_ for _ in Tmarkers if _ >= Ti.min() and _ <= Ti.max()])
-
-	if ax is None:
-		ax = _ppl.gca()
-	ax.set_xlabel(xlabel)
-	ax.set_ylabel(ylabel)
-
-	cif = _chi2.ppf(ci_pvalue, 1)**.5
-
-	Xe = D47_calib_function(Ti)
-	Ye = D48_calib_function(Ti)
-
-	if show_eqline:
-		plot_elements['eqline'], = ax.plot(
-			_unp.nominal_values(Xe),
-			_unp.nominal_values(Ye),
-			**(default_kwargs_eqline | kwargs_eqline),
+		**Arguments**
+		* `T`: `ndarray` or `uarray` of temperatures to plot
+		* `p`: confidence level
+		* `ax`: which instance of `matplotlib.axes.Axes` to draw in; use current axes if `ax` = `None`.
+		* `kwargs`: passed to `matplotlib.patches.Ellipse()`
+		"""
+		_T = _cd.as_uarray(T, CM = CM, Xse = Tse)
+		return conf_ellipse(
+			self.D47_calib_function(_T),
+			self.D48_calib_function(_T),
+			p = p,
+			ax = ax,
+			**kwargs,
 		)
 
-	if show_D48ci:
-		plot_elements['D48ci'] = ax.fill_between(
-			_unp.nominal_values(Xe),
-			_unp.nominal_values(Ye) - cif * _unp.std_devs(Ye),
-			_unp.nominal_values(Ye) + cif * _unp.std_devs(Ye),
-			**(default_kwargs_D48ci | kwargs_D48ci),
+
+	def plot_D95_equilibrium(
+		self,
+		Tmin: float = 0.,
+		Tmax: float = 1000.,
+		NT: int = 101,
+		Tmarkers: _np.typing.ArrayLike = [0, 25, 100, 250, 1000],
+		kwargs_Tmarkers: dict = {},
+		show_Tmarker_labels: bool = True,
+		kwargs_Tmarker_labels: dict = {},
+		show_Tmarker_ellipses: bool = False,
+		kwargs_Tmarker_ellipses: dict = {},
+		show_eqline: bool = True,
+		kwargs_eqline: dict = {},
+		show_D47ci: bool = True,
+		kwargs_D47ci: dict = {},
+		show_D48ci: bool = True,
+		kwargs_D48ci: dict = {},
+		ci_pvalue: float = 0.95,
+		ax: (_ppl.Axes | None) = None,
+		xlabel: str = '$Δ_{47}$   [‰]',
+		ylabel: str = '$Δ_{48}$   [‰]',
+		lw: float = 0.7,
+	) -> (dict, dict):
+		"""
+		Plot a thermodynamic equilibrium curve in (Δ<sub>47</sub>, Δ<sub>48</sub>) space
+		as a function of temperature.
+
+		**Arguments**
+		* `Tmin`: minimum T to plot
+		* `Tmax`: maximum T to plot
+		* `NT`: number of steps in equilibrium curve (interpolated at constant steps in 1/T<sup>2</sup> space)
+		* `Tmarkers`: T markers to add along the curve
+		* `kwargs_Tmarkers`: passed to `plot()` when plotting T markers
+		* `show_Tmarker_labels`: whether to add T labels to T markers
+		* `kwargs_Tmarker_labels`: passed to `text()` when plotting T markers
+		* `show_Tmarker_ellipses`: whether to add confidence ellipses to T markers
+		* `kwargs_Tmarker_ellipses`: passed to `T_ellipses()` when plotting T marker ellipses
+		* `show_eqline`: whether to plot the equilibrium curve itself
+		* `kwargs_eqline`: passed to `plot()` when plotting the equilibrium curve
+		* `show_D47ci`: whether to plot the Δ<sub>47</sub> confidence band of the equilibrium curve
+		* `kwargs_D47ci`: passed to `fill_betweenx()` when plotting the Δ<sub>47</sub> confidence band
+		* `show_D48ci`: whether to plot the Δ<sub>48</sub> confidence band of the equilibrium curve
+		* `kwargs_D48ci`: passed to `fill_betweenx()` when plotting the Δ<sub>48</sub> confidence band
+		* `ci_pvalue`: confidence level for the Δ<sub>47</sub> and Δ<sub>48</sub> confidence band
+		* `ax`: which instance of `matplotlib.axes.Axes` to draw in; use current axes if `ax` = `None`.
+		* `xlabel`: string to pass to `xlabel()`
+		* `ylabel`: string to pass to `ylabel()`
+		* `lw`: default line width for most plot elements
+
+		**Returns**
+		* `data`: a dict of the T, Δ<sub>47</sub> and Δ<sub>48</sub> values generated for this plot:
+			- `Te`  : temperature interpolated along the equilibrium curve
+			- `D47e`: Δ<sub>47</sub> interpolated along the equilibrium curve
+			- `D48e`: Δ<sub>48</sub> interpolated along the equilibrium curve
+			- `Tm`  : temperature of T markers
+			- `D47m`: Δ<sub>47</sub> of T markers
+			- `D48m`: Δ<sub>48</sub> of T markers
+
+		* `plot_elements`: a dict of the `Axes` elements generated for this plot:
+			- `eqline`: `Line2D` of the equilibrium curve
+			- `D47ci`: `PolyCollection` of the Δ<sub>47</sub> confidence band
+			- `D48ci`: `PolyCollection` of the Δ<sub>48</sub> confidence band
+			- `Tm`: `Line2D` of the T markers
+			- `Tme`: list of `Ellipse` objects for the T marker ellipses
+			- `Tml`: list of `Text` objects for the T marker labels
+		"""
+
+		default_kwargs_eqline = dict(
+			marker = 'None',
+			ls = '-',
+			color = 'k',
+			lw = lw,
+		)
+		default_kwargs_D48ci = dict(
+			color = 'k',
+			lw = 0,
+			alpha = 0.15,
+		)
+		default_kwargs_D47ci = dict(
+			color = 'k',
+			lw = 0,
+			alpha = 0.15,
+		)
+		default_kwargs_Tmarkers = dict(
+			ls = 'None',
+			marker = 'o',
+			ms = 4,
+			mfc = 'w',
+			mec = 'k',
+			mew = lw,
+		)
+		default_kwargs_Tmarker_ellipses = dict(
+			fc = 'None',
+			ec = 'k',
+			lw = lw,
+		)
+		default_kwargs_Tmarker_labels = dict(
+			size = 8,
+			va = 'center',
+			ha = 'left',
+			linespacing = 3,
 		)
 
-	if show_D47ci:
-		plot_elements['D47ci'] = ax.fill_betweenx(
-			_unp.nominal_values(Ye),
-			_unp.nominal_values(Xe) - cif * _unp.std_devs(Xe),
-			_unp.nominal_values(Xe) + cif * _unp.std_devs(Xe),
-			**(default_kwargs_D47ci | kwargs_D47ci),
-		)
+		plot_elements = {}
 
-	Xm = D47_calib_function(Tmarkers)
-	Ym = D48_calib_function(Tmarkers)
-	if Tmarkers.size > 0:
-		plot_elements['Tm'] = ax.plot(
-			_unp.nominal_values(Xm),
-			_unp.nominal_values(Ym),
-			**(default_kwargs_Tmarkers | kwargs_Tmarkers),
-		)
-		if show_Tmarker_ellipses:
-			plot_elements['Tme'] = conf_ellipses(
-				Xm,
-				Ym,
-				ax = ax,
-				**(default_kwargs_Tmarker_ellipses | kwargs_Tmarker_ellipses),
+		Ti = _np.linspace(
+			(Tmin + 273.15)**-2,
+			(Tmax + 273.15)**-2,
+			NT
+		)**-0.5 - 273.15
+
+		Tmarkers = _np.array([_ for _ in Tmarkers if _ >= Ti.min() and _ <= Ti.max()])
+
+		if ax is None:
+			ax = _ppl.gca()
+		ax.set_xlabel(xlabel)
+		ax.set_ylabel(ylabel)
+
+		cif = _chi2.ppf(ci_pvalue, 1)**.5
+
+		Xe = self.D47_calib_function(Ti)
+		Ye = self.D48_calib_function(Ti)
+
+		if show_eqline:
+			plot_elements['eqline'], = ax.plot(
+				_unp.nominal_values(Xe),
+				_unp.nominal_values(Ye),
+				**(default_kwargs_eqline | kwargs_eqline),
 			)
-		if show_Tmarker_labels:
-			plot_elements['Tml'] = []
-			for x,y,t in zip(Xm, Ym, Tmarkers):
-				plot_elements['Tml'].append(
-					ax.text(
-						x.n,
-						y.n,
-						f'\n${t:.0f}\\,$°C',
-						**(default_kwargs_Tmarker_labels | kwargs_Tmarker_labels),
-					)
+
+		if show_D48ci:
+			plot_elements['D48ci'] = ax.fill_between(
+				_unp.nominal_values(Xe),
+				_unp.nominal_values(Ye) - cif * _unp.std_devs(Ye),
+				_unp.nominal_values(Ye) + cif * _unp.std_devs(Ye),
+				**(default_kwargs_D48ci | kwargs_D48ci),
+			)
+
+		if show_D47ci:
+			plot_elements['D47ci'] = ax.fill_betweenx(
+				_unp.nominal_values(Ye),
+				_unp.nominal_values(Xe) - cif * _unp.std_devs(Xe),
+				_unp.nominal_values(Xe) + cif * _unp.std_devs(Xe),
+				**(default_kwargs_D47ci | kwargs_D47ci),
+			)
+
+		Xm = self.D47_calib_function(Tmarkers)
+		Ym = self.D48_calib_function(Tmarkers)
+		if Tmarkers.size > 0:
+			plot_elements['Tm'] = ax.plot(
+				_unp.nominal_values(Xm),
+				_unp.nominal_values(Ym),
+				**(default_kwargs_Tmarkers | kwargs_Tmarkers),
+			)
+			if show_Tmarker_ellipses:
+				plot_elements['Tme'] = conf_ellipse(
+					Xm,
+					Ym,
+					ax = ax,
+					**(default_kwargs_Tmarker_ellipses | kwargs_Tmarker_ellipses),
 				)
+			if show_Tmarker_labels:
+				plot_elements['Tml'] = []
+				for x,y,t in zip(Xm, Ym, Tmarkers):
+					plot_elements['Tml'].append(
+						ax.text(
+							x.n,
+							y.n,
+							f'\n${t:.0f}\\,$°C',
+							**(default_kwargs_Tmarker_labels | kwargs_Tmarker_labels),
+						)
+					)
 
-	ax.autoscale_view()
+		ax.autoscale_view()
 
-	data = dict(
-		Te = Ti,
-		D47e = Xe,
-		D48e = Ye,
-		Tm = Tmarkers,
-		D47m = Xm,
-		D48m = Ym,
-	)
-
-	return data, plot_elements
-
-
-#### Temperature estimates ####
-
-
-def nearest_Teq(
-	D47: _cd.uarray,
-	D48: _cd.uarray,
-	D47_calib_coefs: _cd.uarray = D47_calib_coefs,
-	D48_calib_coefs: _cd.uarray = D48_calib_coefs,
-	ignore_calib_uncertainties: bool = False,
-	estimate_pdf: bool = False,
-	N_qmc: int = 1000,
-):
-	"""
-	Returns a `correldata.uarray` of T values, each of which is the closest (in the OGLS sense)
-	to one (Δ<sub>47</sub>, Δ<sub>48</sub>) pair considered independently of the others.
-	Also returns an array of corresponding p-values taking into account errors in Δ<sub>47</sub>
-	and Δ<sub>48</sub> (and any covariance between the two) as well as errors in the
-	Δ<sub>47</sub> and Δ<sub>48</sub> calibrations.
-
-	This is both the fastest and the strongly recommended version of this calculation.
-	It is expected to yield an `uarray` with reasonably accurate covariance between the
-	`Teq` values, but also between `Teq` and all other variables. Usually, these `Teq`
-	values are strongly correlated with the corresponding values of `D47`.
-	"""
-
-	N = D47.size
-	N47 = D47_calib_coefs.size
-	N48 = D48_calib_coefs.size
-	Teq = D47 * 0
-
-	_np.set_printoptions(threshold = _np.inf)
-	_np.set_printoptions(linewidth = _np.inf)
-
-
-	if estimate_pdf:
-
-		from scipy.stats import qmc
-		from tqdm import trange
-
-		input_params = _cd.uarray([
-			*D47,
-			*D48,
-			*D47_calib_coefs,
-			*D48_calib_coefs,
-		])
-
-		qmc_dist = qmc.MultivariateNormalQMC(
-			mean = input_params.n*0,
-			cov = input_params.cor,
+		data = dict(
+			Te = Ti,
+			D47e = Xe,
+			D48e = Ye,
+			Tm = Tmarkers,
+			D47m = Xm,
+			D48m = Ym,
 		)
-		qmc_draws = input_params.n + qmc_dist.random(N_qmc) * input_params.s
 
-		T_qmc = _cd.uarray(_np.zeros((N_qmc, N)))
+		return data, plot_elements
+
+	#### Temperature estimates ####
+	def nearest_Teq(
+		self,
+		D47: _cd.uarray,
+		D48: _cd.uarray,
+		ignore_calib_uncertainties: bool = False,
+		estimate_pdf: bool = False,
+		N_qmc: int = 1000,
+	):
+		"""
+		Returns a `correldata.uarray` of T values, each of which is the closest (in the OGLS sense)
+		to one (Δ<sub>47</sub>, Δ<sub>48</sub>) pair considered independently of the others.
+		Also returns an array of corresponding p-values taking into account errors in Δ<sub>47</sub>
+		and Δ<sub>48</sub> (and any covariance between the two) as well as errors in the
+		Δ<sub>47</sub> and Δ<sub>48</sub> calibrations.
+
+		This is both the fastest and the strongly recommended version of this calculation.
+		It is expected to yield an `uarray` with reasonably accurate covariance between the
+		`Teq` values, but also between `Teq` and all other variables. Usually, these `Teq`
+		values are strongly correlated with the corresponding values of `D47`.
+		"""
+
+		N = D47.size
+		N47 = self.D47_coefs.size
+		N48 = self.D48_coefs.size
+		Teq = D47 * 0
+
+		_np.set_printoptions(threshold = _np.inf)
+		_np.set_printoptions(linewidth = _np.inf)
 
 
-	for i in range(N):
-		def fun(*args): # args = (D47, D48, *D47_calib_coefs, *D48_calib_coefs)
+		if estimate_pdf:
+
+			from scipy.stats import qmc
+			from tqdm import trange
+
+			input_params = _cd.uarray([
+				*D47,
+				*D48,
+				*self.D47_coefs,
+				*self.D48_coefs,
+			])
+
+			qmc_dist = qmc.MultivariateNormalQMC(
+				mean = input_params.n*0,
+				cov = input_params.cor,
+			)
+			qmc_draws = input_params.n + qmc_dist.random(N_qmc) * input_params.s
+
+			T_qmc = _cd.uarray(_np.zeros((N_qmc, N)))
+
+		for i in range(N):
+			def fun(*args): # args = (D47, D48, *D47_calib_coefs, *D48_calib_coefs)
+
+				args = _np.array(args)
+				D47_n = args[0]
+				D48_n = args[1]
+				D47_calib_coefs_n = args[-N48-N47:-N48]
+				D48_calib_coefs_n = args[-N48:]
+
+				params = _lmfit.Parameters()
+				a0, a2 = _D47_approx_calib_coefs
+				params.add('Ti', value = ((D47_n - a0) / a2)**-.5 - 273.15)
+
+				D47_u = _cd.uarray([_uc.ufloat(D47_n, D47.s[i])])
+				D48_u = _cd.uarray([_uc.ufloat(D48_n, D48.s[i])])
+				D47_calib_coefs_u = _cd.uarray(_uc.correlated_values(D47_calib_coefs_n, self.D47_coefs.covar))
+				D48_calib_coefs_u = _cd.uarray(_uc.correlated_values(D48_calib_coefs_n, self.D48_coefs.covar))
+
+				def cost_fun(
+					p,
+					ignore_calib_uncertainties = ignore_calib_uncertainties,
+				):
+					R = _cd.uarray(_np.concatenate((
+						D47_u - D4x_calib_function(p['Ti'], D47_calib_coefs_u, ignore_calib_uncertainties = ignore_calib_uncertainties),
+						D48_u - D4x_calib_function(p['Ti'], D48_calib_coefs_u, ignore_calib_uncertainties = ignore_calib_uncertainties),
+					)))
+
+					invS = _np.linalg.inv(R.covar)
+					L = _cholesky(invS)
+
+					return L @ R.n
+
+				minresult = _lmfit.minimize(cost_fun, params, method = 'least_squares', scale_covar = False, jac = '3-point')
+				# slower but yields very similar results:
+				# minresult = _lmfit.minimize(cost_fun, params, method = 'powell', scale_covar = False)
+
+				return minresult.params['Ti'].value
+
+			wrapped_fun = _uc.wrap(fun)
+			Teq[i] = wrapped_fun(D47[i], D48[i], *self.D47_coefs, *self.D48_coefs)
+
+			if estimate_pdf:
+				for k in trange(N_qmc):
+					T_qmc[k,i] = fun(
+						qmc_draws[k,i],
+						qmc_draws[k,N+i],
+						*qmc_draws[k,-N47-N48:-N48],
+						*qmc_draws[k,-N48:],
+					)
+
+		R = _cd.uarray(_np.concatenate((
+			D47 - D4x_calib_function(Teq.n, self.D47_coefs, ignore_calib_uncertainties = ignore_calib_uncertainties),
+			D48 - D4x_calib_function(Teq.n, self.D48_coefs, ignore_calib_uncertainties = ignore_calib_uncertainties),
+		)))
+
+		p = _np.zeros((N,))
+		for k in range(N):
+			r = R[k::N]
+			z2 = r.m
+			p[k] = 1-_chi2.cdf(z2, 1)
+
+		if estimate_pdf:
+			return Teq, p, T_qmc
+		return Teq, p
+
+
+	def joint_nearest_Teq(
+		self,
+		D47: _cd.uarray,
+		D48: _cd.uarray,
+		ignore_calib_uncertainties: bool = False,
+	):
+		"""
+		Returns a `correldata.uarray` of T values which are *jointly* closest (in the OGLS sense)
+		to a sequence of (Δ<sub>47</sub>, Δ<sub>48</sub>) pairs. Also returns an array of
+		corresponding p-values taking into account errors in Δ<sub>47</sub> and Δ<sub>48</sub>
+		(and any covariance between the two) as well as errors in the Δ<sub>47</sub> and
+		Δ<sub>48</sub> calibrations.
+
+		Caution: the use of this function is **not generally recommended** except for
+		experimentation purposes, because it is conceptually and numerically risky to *jointly*
+		fit the sequence of `Teq` values, as opposed to fitting each of them individually,
+		as done by the recommended function `nearest_Teq()`.
+
+		This is both the slowest and most complete version of this calculation.
+		It is expected to yield an `uarray` with reasonably accurate covariance between the
+		`Teq` values, but also between `Teq` and all other variables. Usually, these `Teq`
+		values are strongly correlated with the corresponding values of `D47`.
+
+		A faster but incomplete and potentially less accurate version of this calculation is
+		provided by `lazy_joint_nearest_Teq()`.
+		"""
+
+		N = D47.size
+		N47 = self.D47_coefs.size
+		N48 = self.D48_coefs.size
+
+		def fun(j, *args):
 
 			args = _np.array(args)
-			D47_n = args[0]
-			D48_n = args[1]
+			D47_n = args[:N]
+			D48_n = args[N:2*N]
 			D47_calib_coefs_n = args[-N48-N47:-N48]
 			D48_calib_coefs_n = args[-N48:]
 
 			params = _lmfit.Parameters()
 			a0, a2 = _D47_approx_calib_coefs
-			params.add('Ti', value = ((D47_n - a0) / a2)**-.5 - 273.15)
+			for k in range(N):
+				params.add(f'T{k}', value = ((D47_n[k] - a0) / a2)**-.5 - 273.15)
 
-			D47_u = _cd.uarray([_uc.ufloat(D47_n, D47.s[i])])
-			D48_u = _cd.uarray([_uc.ufloat(D48_n, D48.s[i])])
-			D47_calib_coefs_u = _cd.uarray(_uc.correlated_values(D47_calib_coefs_n, D47_calib_coefs.covar))
-			D48_calib_coefs_u = _cd.uarray(_uc.correlated_values(D48_calib_coefs_n, D48_calib_coefs.covar))
+			D47_u = _cd.uarray(_uc.correlated_values(D47_n, D47.covar))
+			D48_u = _cd.uarray(_uc.correlated_values(D48_n, D48.covar))
+			D47_calib_coefs_u = _cd.uarray(_uc.correlated_values(D47_calib_coefs_n, self.D47_coefs.covar))
+			D48_calib_coefs_u = _cd.uarray(_uc.correlated_values(D48_calib_coefs_n, self.D48_coefs.covar))
 
 			def cost_fun(
 				p,
 				ignore_calib_uncertainties = ignore_calib_uncertainties,
 			):
+				T = _np.array([p[f'T{k}'] for k in range(N)])
 				R = _cd.uarray(_np.concatenate((
-					D47_u - D4x_calib_function(p['Ti'], D47_calib_coefs_u, ignore_calib_uncertainties = ignore_calib_uncertainties),
-					D48_u - D4x_calib_function(p['Ti'], D48_calib_coefs_u, ignore_calib_uncertainties = ignore_calib_uncertainties),
+					D47_u - D4x_calib_function(T, D47_calib_coefs_u, ignore_calib_uncertainties = ignore_calib_uncertainties),
+					D48_u - D4x_calib_function(T, D48_calib_coefs_u, ignore_calib_uncertainties = ignore_calib_uncertainties),
 				)))
 
 				invS = _np.linalg.inv(R.covar)
 				L = _cholesky(invS)
+
+	# 			R_n = _np.concatenate((
+	# 				D47_n - D4x_calib_function(T, D47_calib_coefs_n, ignore_calib_uncertainties = ignore_calib_uncertainties),
+	# 				D48_n - D4x_calib_function(T, D48_calib_coefs_n, ignore_calib_uncertainties = ignore_calib_uncertainties),
+	# 			))
 
 				return L @ R.n
 
@@ -612,85 +703,57 @@ def nearest_Teq(
 			# slower but yields very similar results:
 			# minresult = _lmfit.minimize(cost_fun, params, method = 'powell', scale_covar = False)
 
-			return minresult.params['Ti'].value
+			return minresult.params[f'T{j}'].value
 
 		wrapped_fun = _uc.wrap(fun)
-		Teq[i] = wrapped_fun(D47[i], D48[i], *D47_calib_coefs, *D48_calib_coefs)
+		Teq = _cd.uarray([wrapped_fun(_, *D47, *D48, *self.D47_coefs, *self.D48_coefs) for _ in range(N)])
 
-		if estimate_pdf:
-			for k in trange(N_qmc):
-				T_qmc[k,i] = fun(
-					qmc_draws[k,i],
-					qmc_draws[k,N+i],
-					*qmc_draws[k,-N47-N48:-N48],
-					*qmc_draws[k,-N48:],
-				)
+		R = _cd.uarray(_np.concatenate((
+			D47 - D4x_calib_function(Teq.n, self.D47_coefs, ignore_calib_uncertainties = ignore_calib_uncertainties),
+			D48 - D4x_calib_function(Teq.n, self.D48_coefs, ignore_calib_uncertainties = ignore_calib_uncertainties),
+		)))
 
-	R = _cd.uarray(_np.concatenate((
-		D47 - D4x_calib_function(Teq.n, D47_calib_coefs, ignore_calib_uncertainties = ignore_calib_uncertainties),
-		D48 - D4x_calib_function(Teq.n, D48_calib_coefs, ignore_calib_uncertainties = ignore_calib_uncertainties),
-	)))
+		p = _np.zeros((N,))
+		for k in range(N):
+			r = R[k::N]
+			z2 = r.m
+			p[k] = 1-_chi2.cdf(z2, 1)
 
-	p = _np.zeros((N,))
-	for k in range(N):
-		r = R[k::N]
-		z2 = r.m
-		p[k] = 1-_chi2.cdf(z2, 1)
-
-	if estimate_pdf:
-		return Teq, p, T_qmc
-	return Teq, p
+		return Teq, p
 
 
-def joint_nearest_Teq(
-	D47: _cd.uarray,
-	D48: _cd.uarray,
-	D47_calib_coefs: _cd.uarray = D47_calib_coefs,
-	D48_calib_coefs: _cd.uarray = D48_calib_coefs,
-	ignore_calib_uncertainties: bool = False,
-):
-	"""
-	Returns a `correldata.uarray` of T values which are *jointly* closest (in the OGLS sense)
-	to a sequence of (Δ<sub>47</sub>, Δ<sub>48</sub>) pairs. Also returns an array of
-	corresponding p-values taking into account errors in Δ<sub>47</sub> and Δ<sub>48</sub>
-	(and any covariance between the two) as well as errors in the Δ<sub>47</sub> and
-	Δ<sub>48</sub> calibrations.
+	def lazy_joint_nearest_Teq(
+		self,
+		D47: _cd.uarray,
+		D48: _cd.uarray,
+		ignore_calib_uncertainties: bool = False,
+	):
+		"""
+		Returns a `correldata.uarray` of T values which are *jointly* closest (in the OGLS sense)
+		to a sequence of (Δ<sub>47</sub>, Δ<sub>48</sub>) pairs. Also returns an array of
+		corresponding p-values taking into account errors in Δ<sub>47</sub> and Δ<sub>48</sub>
+		(and any covariance between the two) as well as errors in the Δ<sub>47</sub> and
+		Δ<sub>48</sub> calibrations.
 
-	Caution: the use of this function is **not generally recommended** except for
-	experimentation purposes, because it is conceptually and numerically risky to *jointly*
-	fit the sequence of `Teq` values, as opposed to fitting each of them individually,
-	as done by the recommended function `nearest_Teq()`.
+		Caution: the use of this function is **not generally recommended** except for
+		experimentation purposes, because it is conceptually and numerically risky to *jointly*
+		fit the sequence of `Teq` values, as opposed to fitting each of them individually,
+		as done by the recommended function `nearest_Teq()`.
 
-	This is both the slowest and most complete version of this calculation.
-	It is expected to yield an `uarray` with reasonably accurate covariance between the
-	`Teq` values, but also between `Teq` and all other variables. Usually, these `Teq`
-	values are strongly correlated with the corresponding values of `D47`.
+		This is a faster but incomplete version of this calculation. It is expected to yield an
+		`uarray` with roughly accurate covariance between the `Teq` values, but without computing
+		the covariance with any other variables.
 
-	A faster but incomplete and potentially less accurate version of this calculation is
-	provided by `lazy_joint_nearest_Teq()`.
-	"""
+		A slower but complete and more accurate version of this calculation is provided by
+		`joint_nearest_Teq()`.
+		"""
 
-	N = D47.size
-	N47 = D47_calib_coefs.size
-	N48 = D48_calib_coefs.size
-
-	def fun(j, *args):
-
-		args = _np.array(args)
-		D47_n = args[:N]
-		D48_n = args[N:2*N]
-		D47_calib_coefs_n = args[-N48-N47:-N48]
-		D48_calib_coefs_n = args[-N48:]
+		N = D47.size
 
 		params = _lmfit.Parameters()
 		a0, a2 = _D47_approx_calib_coefs
 		for k in range(N):
-			params.add(f'T{k}', value = ((D47_n[k] - a0) / a2)**-.5 - 273.15)
-
-		D47_u = _cd.uarray(_uc.correlated_values(D47_n, D47.covar))
-		D48_u = _cd.uarray(_uc.correlated_values(D48_n, D48.covar))
-		D47_calib_coefs_u = _cd.uarray(_uc.correlated_values(D47_calib_coefs_n, D47_calib_coefs.covar))
-		D48_calib_coefs_u = _cd.uarray(_uc.correlated_values(D48_calib_coefs_n, D48_calib_coefs.covar))
+			params.add(f'T{k}', value = ((D47[k].n - a0) / a2)**-.5 - 273.15)
 
 		def cost_fun(
 			p,
@@ -698,193 +761,115 @@ def joint_nearest_Teq(
 		):
 			T = _np.array([p[f'T{k}'] for k in range(N)])
 			R = _cd.uarray(_np.concatenate((
-				D47_u - D4x_calib_function(T, D47_calib_coefs_u, ignore_calib_uncertainties = ignore_calib_uncertainties),
-				D48_u - D4x_calib_function(T, D48_calib_coefs_u, ignore_calib_uncertainties = ignore_calib_uncertainties),
+				D47 - self.D47_calib_function(T, ignore_calib_uncertainties = ignore_calib_uncertainties),
+				D48 - self.D48_calib_function(T, ignore_calib_uncertainties = ignore_calib_uncertainties),
 			)))
 
 			invS = _np.linalg.inv(R.covar)
 			L = _cholesky(invS)
-
-# 			R_n = _np.concatenate((
-# 				D47_n - D4x_calib_function(T, D47_calib_coefs_n, ignore_calib_uncertainties = ignore_calib_uncertainties),
-# 				D48_n - D4x_calib_function(T, D48_calib_coefs_n, ignore_calib_uncertainties = ignore_calib_uncertainties),
-# 			))
-
 			return L @ R.n
 
 		minresult = _lmfit.minimize(cost_fun, params, method = 'least_squares', scale_covar = False, jac = '3-point')
-		# slower but yields very similar results:
-		# minresult = _lmfit.minimize(cost_fun, params, method = 'powell', scale_covar = False)
 
-		return minresult.params[f'T{j}'].value
+		Teq = _cd.uarray([minresult.uvars[f'T{k}'] for k in range(N)])
 
-	wrapped_fun = _uc.wrap(fun)
-	Teq = _cd.uarray([wrapped_fun(_, *D47, *D48, *D47_calib_coefs, *D48_calib_coefs) for _ in range(N)])
-
-	R = _cd.uarray(_np.concatenate((
-		D47 - D4x_calib_function(Teq.n, D47_calib_coefs, ignore_calib_uncertainties = ignore_calib_uncertainties),
-		D48 - D4x_calib_function(Teq.n, D48_calib_coefs, ignore_calib_uncertainties = ignore_calib_uncertainties),
-	)))
-
-	p = _np.zeros((N,))
-	for k in range(N):
-		r = R[k::N]
-		z2 = r.m
-		p[k] = 1-_chi2.cdf(z2, 1)
-
-	return Teq, p
-
-
-def lazy_joint_nearest_Teq(
-	D47: _cd.uarray,
-	D48: _cd.uarray,
-	D47_calib_function = D47_calib_function,
-	D48_calib_function = D48_calib_function,
-	ignore_calib_uncertainties: bool = False,
-):
-	"""
-	Returns a `correldata.uarray` of T values which are *jointly* closest (in the OGLS sense)
-	to a sequence of (Δ<sub>47</sub>, Δ<sub>48</sub>) pairs. Also returns an array of
-	corresponding p-values taking into account errors in Δ<sub>47</sub> and Δ<sub>48</sub>
-	(and any covariance between the two) as well as errors in the Δ<sub>47</sub> and
-	Δ<sub>48</sub> calibrations.
-
-	Caution: the use of this function is **not generally recommended** except for
-	experimentation purposes, because it is conceptually and numerically risky to *jointly*
-	fit the sequence of `Teq` values, as opposed to fitting each of them individually,
-	as done by the recommended function `nearest_Teq()`.
-
-	This is a faster but incomplete version of this calculation. It is expected to yield an
-	`uarray` with roughly accurate covariance between the `Teq` values, but without computing
-	the covariance with any other variables.
-
-	A slower but complete and more accurate version of this calculation is provided by
-	`joint_nearest_Teq()`.
-	"""
-
-	N = D47.size
-
-	params = _lmfit.Parameters()
-	a0, a2 = _D47_approx_calib_coefs
-	for k in range(N):
-		params.add(f'T{k}', value = ((D47[k].n - a0) / a2)**-.5 - 273.15)
-
-	def cost_fun(
-		p,
-		ignore_calib_uncertainties = ignore_calib_uncertainties,
-	):
-		T = _np.array([p[f'T{k}'] for k in range(N)])
 		R = _cd.uarray(_np.concatenate((
-			D47 - D47_calib_function(T, ignore_calib_uncertainties = ignore_calib_uncertainties),
-			D48 - D48_calib_function(T, ignore_calib_uncertainties = ignore_calib_uncertainties),
+			D47 - self.D47_calib_function(Teq.n, ignore_calib_uncertainties = ignore_calib_uncertainties),
+			D48 - self.D48_calib_function(Teq.n, ignore_calib_uncertainties = ignore_calib_uncertainties),
 		)))
 
-		invS = _np.linalg.inv(R.covar)
-		L = _cholesky(invS)
-		return L @ R.n
+		p = _np.zeros((N,))
+		for k in range(N):
+			r = R[k::N]
+			z2 = r.m
+			p[k] = 1-_chi2.cdf(z2, 1)
 
-	minresult = _lmfit.minimize(cost_fun, params, method = 'least_squares', scale_covar = False, jac = '3-point')
-
-	Teq = _cd.uarray([minresult.uvars[f'T{k}'] for k in range(N)])
-
-	R = _cd.uarray(_np.concatenate((
-		D47 - D47_calib_function(Teq.n, ignore_calib_uncertainties = ignore_calib_uncertainties),
-		D48 - D48_calib_function(Teq.n, ignore_calib_uncertainties = ignore_calib_uncertainties),
-	)))
-
-	p = _np.zeros((N,))
-	for k in range(N):
-		r = R[k::N]
-		z2 = r.m
-		p[k] = 1-_chi2.cdf(z2, 1)
-
-	return Teq, p
+		return Teq, p
 
 
-def projected_Teq(
-	D47: _cd.uarray,
-	D48: _cd.uarray,
-	kinetic_slope: (float | _uc.UFloat),
-	D47_calib_coefs: _cd.uarray = D47_calib_coefs,
-	D48_calib_coefs: _cd.uarray = D48_calib_coefs,
-	ignore_calib_uncertainties: bool = False,
-	estimate_pdf: bool = False,
-	N_qmc: int = 1000,
-):
+	def projected_Teq(
+		self,
+		D47: _cd.uarray,
+		D48: _cd.uarray,
+		kinetic_slope: (float | _uc.UFloat),
+		ignore_calib_uncertainties: bool = False,
+		estimate_pdf: bool = False,
+		N_qmc: int = 1000,
+	):
 
-	D47 = _cd.uarray(D47)
-	D48 = _cd.uarray(D48)
-	N = D47.size
-	N47c = D47_calib_coefs.size
-	N48c = D48_calib_coefs.size
-	T = D47 * 0
-
-	if estimate_pdf:
-
-		from scipy.stats import qmc
-		from tqdm import trange
-
-		input_params = _cd.uarray([
-			*D47,
-			*D48,
-			kinetic_slope,
-			*D47_calib_coefs,
-			*D48_calib_coefs,
-		])
-
-		qmc_dist = qmc.MultivariateNormalQMC(
-			mean = input_params.n*0,
-			cov = input_params.cor,
-		)
-		qmc_draws = input_params.n + qmc_dist.random(N_qmc) * input_params.s
-
-		T_qmc = _cd.uarray(_np.zeros((N_qmc, N)))
-
-	for i in range(N):
-
-		# function to solve
-		def fun(t, *args): # args = (D47, D48, kinetic_slope, *D47_calib_coefs, *D48_calib_coefs)
-			return (
-				args[1]
-				- _np.sum([
-					c / (t[0] + 273.15)**k
-					for k,c in enumerate(args[-N48c:])
-				])
-				- args[2] * (
-					args[0]
-					- _np.sum([
-						c / (t[0] + 273.15)**k
-						for k,c in enumerate(args[-N47c-N48c:-N48c])
-					])
-				)
-			)
-
-		def g(*args):
-			return _fsolve(fun, [100.], args = args)[0]
-
-		wg = _uc.wrap(g)
-
-		T[i] = wg(
-			D47[i],
-			D48[i],
-			kinetic_slope,
-			*D47_calib_coefs,
-			*D48_calib_coefs,
-		)
+		D47 = _cd.uarray(D47)
+		D48 = _cd.uarray(D48)
+		N = D47.size
+		N47c = self.D47_coefs.size
+		N48c = self.D48_coefs.size
+		T = D47 * 0
 
 		if estimate_pdf:
-			for k in trange(N_qmc):
-				T_qmc[k,i] = wg(
-					qmc_draws[k,i],
-					qmc_draws[k,N+i],
-					qmc_draws[k,N*2],
-					*qmc_draws[k,-N47c-N48c:-N48c],
-					*qmc_draws[k,-N48c:],
+
+			from scipy.stats import qmc
+			from tqdm import trange
+
+			input_params = _cd.uarray([
+				*D47,
+				*D48,
+				kinetic_slope,
+				*self.D47_coefs,
+				*self.D48_coefs,
+			])
+
+			qmc_dist = qmc.MultivariateNormalQMC(
+				mean = input_params.n*0,
+				cov = input_params.cor,
+			)
+			qmc_draws = input_params.n + qmc_dist.random(N_qmc) * input_params.s
+
+			T_qmc = _cd.uarray(_np.zeros((N_qmc, N)))
+
+		for i in range(N):
+
+			# function to solve
+			def fun(t, *args): # args = (D47, D48, kinetic_slope, *self.D47_coefs, *self.D48_coefs)
+				return (
+					args[1]
+					- _np.sum([
+						c / (t[0] + 273.15)**k
+						for k,c in enumerate(args[-N48c:])
+					])
+					- args[2] * (
+						args[0]
+						- _np.sum([
+							c / (t[0] + 273.15)**k
+							for k,c in enumerate(args[-N47c-N48c:-N48c])
+						])
+					)
 				)
 
-	if estimate_pdf:
-		return T, T_qmc
-	return T
+			def g(*args):
+				return _fsolve(fun, [100.], args = args)[0]
+
+			wg = _uc.wrap(g)
+
+			T[i] = wg(
+				D47[i],
+				D48[i],
+				kinetic_slope,
+				*self.D47_coefs,
+				*self.D48_coefs,
+			)
+
+			if estimate_pdf:
+				for k in trange(N_qmc):
+					T_qmc[k,i] = wg(
+						qmc_draws[k,i],
+						qmc_draws[k,N+i],
+						qmc_draws[k,N*2],
+						*qmc_draws[k,-N47c-N48c:-N48c],
+						*qmc_draws[k,-N48c:],
+					)
+
+		if estimate_pdf:
+			return T, T_qmc
+		return T
 
 
 def save_Teq_report(
@@ -909,6 +894,11 @@ def save_Teq_report(
 	sep = ',',
 	p_cutoff = 0.05,
 ):
+	"""
+	Save a temperature report to a csv file.
+	Includes D47, D48, p-equilibrium values, and nearest Teq with sensible precision defaults.
+	Alternatively, `correldata.data_string()` may be more versatile.
+	"""
 	N = T.size
 	if labels is None:
 		labels = [str(k+1) for k in range(N)]
@@ -969,7 +959,9 @@ Reads data from an input file, computes p-value and T estimates, and print out t
 
 	data = _cd.read_data(datastring)
 
-	Teq, p = nearest_Teq(data['D47'], data['D48'])
+	E = Engine()
+
+	Teq, p = E.nearest_Teq(data['D47'], data['D48'])
 	data['eq_pvalue'] = p
 	data['Teq'] = Teq
 
@@ -978,7 +970,7 @@ Reads data from an input file, computes p-value and T estimates, and print out t
 		kslope = kslope.split('(')
 		kslope = _uc.ufloat(float(kslope[0]), float(kslope[1]))
 
-		Tkp = projected_Teq(data['D47'], data['D48'], kinetic_slope = kslope)
+		Tkp = E.projected_Teq(data['D47'], data['D48'], kinetic_slope = kslope)
 
 		data['kslope'] = _cd.uarray([kslope for _ in data['D47']])
 

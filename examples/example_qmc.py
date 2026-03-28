@@ -6,6 +6,7 @@ from matplotlib import pyplot as _ppl
 from D95thermo import *
 import scipy.stats as stats
 
+E = Engine()
 
 slope = _uc.ufloat(-1, 0.1)
 p_cutoff = 0.05
@@ -16,8 +17,8 @@ data = read_data_from_file('example_data.csv')
 X = data['D47']
 Y = data['D48']
 
-Tp, Tp_qmc = projected_Teq(X, Y, slope, estimate_pdf = True, N_qmc = 2**16)
-Teq, p, T_qmc = nearest_Teq(X, Y, estimate_pdf = True, N_qmc = 2**13)
+Tp, Tp_qmc = E.projected_Teq(X, Y, slope, estimate_pdf = True, N_qmc = 2**16)
+Teq, p, T_qmc = E.nearest_Teq(X, Y, estimate_pdf = True, N_qmc = 2**13)
 
 for sample, t, tqmc, tp, tpqmc in zip(data['Sample'], Teq, T_qmc.T, Tp, Tp_qmc.T):
 
@@ -68,21 +69,21 @@ for sample, t, tqmc, tp, tpqmc in zip(data['Sample'], Teq, T_qmc.T, Tp, Tp_qmc.T
 	_ppl.ylabel('PDF')
 	_ppl.yticks([])
 	fig.savefig(f'pdf_{sample}.pdf')
-	
+
 
 
 # Tp = projected_Teq(X, Y, slope)
 
 # fig = _ppl.figure(figsize = (6.5,4.5))
 # _ppl.title("“$Δ_{95}$ thermometry” ($47+48=95$)")
-# 
+#
 # plot_D95_equilibrium()
-# 
+#
 # conf_ellipse(X, Y, ec = 'k')
-# 
+#
 # T_ellipse(Teq[p >= p_cutoff], ec = eq_color, fc = (*eq_color, 0.2))
 # T_ellipse(Tp[p < p_cutoff], ec = diseq_color, fc = (*diseq_color, 0.2))
-# 
+#
 # for x, y, t in zip(X[p < p_cutoff], Y[p < p_cutoff], Tp[p < p_cutoff]):
 # 	v = _np.array([
 # 		D47_calib_function(t).n - x.n,
@@ -117,7 +118,7 @@ for sample, t, tqmc, tp, tpqmc in zip(data['Sample'], Teq, T_qmc.T, Tp, Tp_qmc.T
 # 			alpha = 0.25,
 # 			**kw,
 # 		)
-# 
+#
 # for x, y, t, pv in zip(X[p >= p_cutoff], Y[p >= p_cutoff], Teq[p >= p_cutoff], p[p >= p_cutoff]):
 # 	_ppl.text(
 # 		x.n, y.n + 5*y.s,
@@ -134,7 +135,7 @@ for sample, t, tqmc, tp, tpqmc in zip(data['Sample'], Teq, T_qmc.T, Tp, Tp_qmc.T
 # 		f'T = {t.n:.1f}±{t.s:.1f}°C',
 # 		ha = 'left', va = 'top', size = 8, color = eq_color,
 # 	)
-# 
+#
 # for x, y, t, pv in zip(X[p < p_cutoff], Y[p < p_cutoff], Tp[p < p_cutoff], p[p < p_cutoff]):
 # 	_ppl.text(
 # 		x.n, y.n + 5*y.s,
@@ -158,7 +159,7 @@ for sample, t, tqmc, tp, tpqmc in zip(data['Sample'], Teq, T_qmc.T, Tp, Tp_qmc.T
 # 		'disequilibrium slope\n(with uncertainty)\n',
 # 		ha = 'left', va = 'bottom', size = 8, color = diseq_color,
 # 	)
-# 
+#
 # 	_ppl.text(
 # 		0.5, 0.02,
 # 		"""
@@ -167,7 +168,7 @@ for sample, t, tqmc, tp, tpqmc in zip(data['Sample'], Teq, T_qmc.T, Tp, Tp_qmc.T
 # measurement uncertainties, $Δ_{47}$ and $Δ_{48}$ calibration uncertainties, and the disequilibrium slope uncertainty.""",
 # 		size = 6.5, va = 'bottom', ha = 'center', transform = _ppl.gca().transAxes,
 # 	)
-# 
+#
 # _ppl.text(
 # 	1, 1.01, 'M. Daëron 2024-10',
 # 	transform = _ppl.gca().transAxes,
@@ -176,14 +177,14 @@ for sample, t, tqmc, tp, tpqmc in zip(data['Sample'], Teq, T_qmc.T, Tp, Tp_qmc.T
 # 	ha = 'right',
 # 	va = 'bottom',
 # )
-# 
+#
 # _ppl.axis('equal')
 # _ppl.axis([0.15, 0.78, None, None])
 # _ppl.savefig('example_plot.pdf')
 # _ppl.savefig('example_plot.png', dpi = 150)
-# 
+#
 # data['pvalue_eq'] = p
 # data['Teq'] = Teq
 # data['Tkp'] = Tp
-# 
+#
 # save_data_to_file(data, 'output.csv')

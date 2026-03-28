@@ -5,6 +5,7 @@ import uncertainties as _uc
 from matplotlib import pyplot as _ppl
 from D95thermo import *
 
+E = Engine()
 
 slope = _uc.ufloat(-1., 0.1)
 p_cutoff = 0.05
@@ -16,25 +17,25 @@ X = data['D47']
 Y = data['D48']
 N = X.size
 
-Teq, p = nearest_Teq(X, Y, ignore_calib_uncertainties = False)
-Tp = projected_Teq(X, Y, slope)
+Teq, p = E.nearest_Teq(X, Y, ignore_calib_uncertainties = False)
+Tp = E.projected_Teq(X, Y, slope)
 
 fig = _ppl.figure(figsize = (6.5,4.5))
 _ppl.title("“$Δ_{95}$ thermometry” ($95=47+48$)")
 
-plot_D95_equilibrium()
+E.plot_D95_equilibrium()
 
 conf_ellipse(X, Y, ec = 'k')
 
-T_ellipse(Teq[p >= p_cutoff], ec = eq_color, fc = (*eq_color, 0.2))
-T_ellipse(Tp[p < p_cutoff], ec = diseq_color, fc = (*diseq_color, 0.2))
+E.T_ellipse(Teq[p >= p_cutoff], ec = eq_color, fc = (*eq_color, 0.2))
+E.T_ellipse(Tp[p < p_cutoff], ec = diseq_color, fc = (*diseq_color, 0.2))
 
 for x, y, t, pv in zip(X, Y, Tp, p):
 	if pv >= p_cutoff:
 		continue
 	v = _np.array([
-		D47_calib_function(t).n - x.n,
-		D48_calib_function(t).n - y.n,
+		E.D47_calib_function(t).n - x.n,
+		E.D48_calib_function(t).n - y.n,
 	])
 	i, j = 0.15, 0.85
 	kw = dict(
@@ -52,10 +53,10 @@ for x, y, t, pv in zip(X, Y, Tp, p):
 	)
 	for s in (-1.96, +1.96):
 		i, j = 0.2, 0.85
-		_t = projected_Teq([x], [y], slope + s * slope.s)[0]
+		_t = E.projected_Teq([x], [y], slope + s * slope.s)[0]
 		v = _np.array([
-			D47_calib_function(_t).n - x.n,
-			D48_calib_function(_t).n - y.n,
+			E.D47_calib_function(_t).n - x.n,
+			E.D48_calib_function(_t).n - y.n,
 		])
 		_ppl.arrow(
 			x.n + i * v[0],
@@ -80,7 +81,7 @@ for x, y, t, pv in zip(X, Y, Teq, p):
 		ha = 'center', va = 'bottom', size = 8, color = eq_color,
 	)
 	_ppl.text(
-		D47_calib_function(t).n + 4*D47_calib_function(t).s, D48_calib_function(t).n - 5 * D48_calib_function(t).s,
+		E.D47_calib_function(t).n + 4*E.D47_calib_function(t).s, E.D48_calib_function(t).n - 5 * E.D48_calib_function(t).s,
 		f'T = {t.n:.1f}±{t.s:.1f}°C',
 		ha = 'left', va = 'top', size = 8, color = eq_color,
 	)
@@ -99,14 +100,14 @@ for x, y, t, pv in zip(X, Y, Tp, p):
 		ha = 'center', va = 'bottom', size = 8, color = diseq_color,
 	)
 	_ppl.text(
-		D47_calib_function(t).n + D47_calib_function(t).s, D48_calib_function(t).n - 3 * D48_calib_function(t).s,
+		E.D47_calib_function(t).n + E.D47_calib_function(t).s, E.D48_calib_function(t).n - 3 * E.D48_calib_function(t).s,
 		f'T = {t.n:.1f}±{t.s:.1f}°C',
 		ha = 'left', va = 'top', size = 8, color = diseq_color,
 	)
 	m = 0.5
 	_ppl.text(
-		(m * x.n + (1-m) * D47_calib_function(t).n),
-		(m * y.n + (1-m) * D48_calib_function(t).n),
+		(m * x.n + (1-m) * E.D47_calib_function(t).n),
+		(m * y.n + (1-m) * E.D48_calib_function(t).n),
 		'disequilibrium slope\n(with uncertainty)\n',
 		ha = 'left', va = 'bottom', size = 8, color = diseq_color,
 	)
