@@ -271,7 +271,14 @@ class Engine():
 		self.D48_coefs = Engine.D48_calib_coefs if D48_coefs is None else D48_coefs
 		"""The Δ<sub>48</sub> calibration coefficients used by this `Engine` instance"""
 
-		self._interpolated_D48_as_function_of_D47 = self._interpolate_D48_as_function_of_D47(D47min_interp, D47max_interp, N_interp)
+		(
+			self._interpolated_D48_as_function_of_D47,
+			self._interpolated_derivative_of_D48_as_function_of_D47,
+		) = self._interpolate_D48_as_function_of_D47(
+			D47min_interp,
+			D47max_interp,
+			N_interp,
+		)
 
 	def D47_calib_function(
 		self,
@@ -313,14 +320,32 @@ class Engine():
 		Ti = ((_D47i - a0) / a2)**-0.5 - 273.15
 		D47i, = self.D47_calib_function(Ti, return_without_uncertainties = True),
 		D48i, = self.D48_calib_function(Ti, return_without_uncertainties = True),
-		return _interp1d(D47i, D48i, kind = 'linear')
+		return (
+			_interp1d(
+				D47i,
+				D48i,
+				kind = 'linear',
+			), # interpolation
+			_interp1d(
+				(D47i[1:] + D47i[:-1]) / 2,
+				(D48i[1:] - D48i[:-1]) / (D47i[1:] - D47i[:-1]),
+				kind = 'linear',
+			), # derivative of the interpolation
+		)
 
-	def interpolate_D48_as_function_of_D47(
+	def D48_as_function_of_D47(
 		self,
 		D47,
 	):
 		return self._interpolated_D48_as_function_of_D47(D47)
 
+	def D48_derivative_as_function_of_D47(
+		self,
+		D47,
+	):
+		return self._interpolated_derivative_of_D48_as_function_of_D47(D47)
+
+_interpolated_derivative_of_D48_as_function_of_D47
 	# def _D48_derivative_wrt_D47(
 	# 	D47coefs: _cd.uarray = D47_calib_coefs,
 	# 	D48coefs: _cd.uarray = D48_calib_coefs,
