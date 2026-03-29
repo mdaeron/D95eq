@@ -16,7 +16,7 @@ data = read_data_from_file('example_data.csv')
 X = data['D47']
 Y = data['D48']
 
-D47eq, pD47 = E.nearest_D47eq(X, Y, ignore_calib_uncertainties = True)
+D47eq, D48eq, pD47 = E.nearest_D47eq(X, Y, ignore_calib_uncertainties = False)
 Teq, p = E.nearest_Teq(X, Y)
 Tp = E.projected_Teq(X, Y, slope)
 
@@ -26,10 +26,13 @@ _ppl.title("“$Δ_{95}$ thermometry” ($47+48=95$)")
 E.plot_D95_equilibrium()
 
 conf_ellipse(X, Y, ec = 'k')
+conf_ellipse(D47eq, D48eq, ec = 'm', lw = 2)
 
-for _D, _p in zip(D47eq, pD47):
+for _D, _p, _T in zip(D47eq, pD47, Teq):
 	_ppl.axvline(_D.n, color = 'r')
+	_ppl.axvline(E.D47_calib_function(_T.n).n, color = 'b')
 	_ppl.text(_D.n, 0.080, f"{_p:.2e}", color = 'r')
+
 
 E.T_ellipse(Teq[p >= p_cutoff], ec = eq_color, fc = (*eq_color, 0.2))
 E.T_ellipse(Tp[p < p_cutoff], ec = diseq_color, fc = (*diseq_color, 0.2))

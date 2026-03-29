@@ -38,6 +38,24 @@ from scipy.interpolate import interp1d as _interp1d
 
 #### Utility variables and functions ####
 
+def ufloat_compatible_interp(xi, yi, x):
+	xn = x.nominal_value if isinstance(x, _uc.UFloat) else float(x)
+	idx = _np.searchsorted(xi, xn)
+	idx = _np.clip(idx, 1, len(xi) - 1)
+
+	x0 = xi[idx-1]
+	x1 = xi[idx]
+	y0 = yi[idx-1]
+	y1 = yi[idx]
+
+	t = (x - x0) / (x1 - x0)
+	return y0 + t * (y1 - y0)
+
+def uarray_compatible_interp(xi, yi):
+	return _np.vectorize(
+		lambda x: ufloat_compatible_interp(xi, yi, x)
+	)
+
 _D47_approx_calib_coefs = [0.159502986, 38588.1545] # computed from code in comments below
 
 # from D47calib import OGLS23 as _OGLS23
@@ -255,9 +273,9 @@ class Engine():
 		self,
 		D47_coefs: (_cd.uarray | ArrayLike | None) = None,
 		D48_coefs: (_cd.uarray | ArrayLike | None) = None,
-		D47min_interp: float = 0.182,
-		D47max_interp: float = 0.786,
-		N_interp: float = 303,
+		Tmin_interp: float = -23.0,
+		Tmax_interp: float = 1277.0,
+		N_interp: float = 201,
 	):
 		"""
 		**Arguments**
@@ -265,20 +283,22 @@ class Engine():
 		* `D48_coefs`: `ndarray` or `uarray` of coefficients to use instead of default ones, ordered as (a0, a1, a2...)
 		"""
 
+		self.T_interp = _np.linspace(
+			(Tmax_interp+273.15)**-2,
+			(Tmin_interp+273.15)**-2,
+			N_interp,
+		)**-0.5 - 273.15
+
 		self.D47_coefs = Engine.D47_calib_coefs if D47_coefs is None else D47_coefs
 		"""The Δ<sub>47</sub> calibration coefficients used by this `Engine` instance"""
 
 		self.D48_coefs = Engine.D48_calib_coefs if D48_coefs is None else D48_coefs
 		"""The Δ<sub>48</sub> calibration coefficients used by this `Engine` instance"""
 
-		(
-			self._interpolated_D48_as_function_of_D47,
-			self._interpolated_derivative_of_D48_as_function_of_D47,
-		) = self._interpolate_D48_as_function_of_D47(
-			D47min_interp,
-			D47max_interp,
-			N_interp,
-		)
+		# (
+		# 	self._D47_as_function_of_D47,
+		# 	self._D48_as_function_of_D47,
+		# ) = self._interp(Tmin_interp, Tmax_interp, N_interp)
 
 	def D47_calib_function(
 		self,
@@ -309,41 +329,70 @@ class Engine():
 	D47_calib_function.__doc__ = D4x_calib_function.__doc__
 	D48_calib_function.__doc__ = D4x_calib_function.__doc__
 
-	def _interpolate_D48_as_function_of_D47(
+	def _interp(
 		self,
-		D47min: float,
-		D47max: float,
+		Tmin: float,
+		Tmax: float,
 		N_interp: float,
 	):
-		a0, a2 = _D47_approx_calib_coefs
-		_D47i = _np.linspace(D47min, D47max, N_interp)
-		Ti = ((_D47i - a0) / a2)**-0.5 - 273.15
-		D47i, = self.D47_calib_function(Ti, return_without_uncertainties = True),
-		D48i, = self.D48_calib_function(Ti, return_without_uncertainties = True),
-		return (
-			_interp1d(
-				D47i,
-				D48i,
-				kind = 'linear',
-			), # interpolation
-			_interp1d(
-				(D47i[1:] + D47i[:-1]) / 2,
-				(D48i[1:] - D48i[:-1]) / (D47i[1:] - D47i[:-1]),
-				kind = 'linear',
-			), # derivative of the interpolation
-		)
+		Ti = _np.linspace(
+			(Tmax+273.15)**-2,
+			(Tmin+273.15)**-2,
+			N_interp,
+		)**-0.5 - 273.15
+		print(Ti)
+
+		D47i, = self.D47_calib_function(
+			Ti,
+			return_without_uncertainties = False,
+			ignore_calib_uncertainties = False,
+		),
+		D48i, = self.D48_calib_function(
+			Ti,
+			return_without_uncertainties = False,
+			ignore_calib_uncertainties = False,
+		),
+
+		D47_interp = _interp1d(D47i.n, D47i, kind='linear')
+		D48_interp = _interp1d(D47i.n, D48i, kind='linear')
+
+		return (D47_interp, D48_interp)
+
+	# def _interpolate_D48_as_function_of_D47(
+	# 	self,
+	# 	D47min: float,
+	# 	D47max: float,
+	# 	N_interp: float,
+	# ):
+	# 	a0, a2 = _D47_approx_calib_coefs
+	# 	_D47i = _np.linspace(D47min, D47max, N_interp)
+	# 	Ti = ((_D47i - a0) / a2)**-0.5 - 273.15
+	# 	D47i, = self.D47_calib_function(Ti, return_without_uncertainties = True),
+	# 	D48i, = self.D48_calib_function(Ti, return_without_uncertainties = True),
+	# 	return (
+	# 		_interp1d(
+	# 			D47i,
+	# 			D48i,
+	# 			kind = 'linear',
+	# 		), # interpolation
+	# 		_interp1d(
+	# 			(D47i[1:] + D47i[:-1]) / 2,
+	# 			(D48i[1:] - D48i[:-1]) / (D47i[1:] - D47i[:-1]),
+	# 			kind = 'linear',
+	# 		), # derivative of the interpolation
+	# 	)
+
+	def D47_as_function_of_D47(
+		self,
+		D47,
+	):
+		return self._D47_as_function_of_D47(D47)
 
 	def D48_as_function_of_D47(
 		self,
 		D47,
 	):
-		return self._interpolated_D48_as_function_of_D47(D47)
-
-	def D48_derivative_as_function_of_D47(
-		self,
-		D47,
-	):
-		return self._interpolated_derivative_of_D48_as_function_of_D47(D47)
+		return self._D48_as_function_of_D47(D47)
 
 	def T_ellipse(
 		self,
@@ -373,7 +422,6 @@ class Engine():
 			ax = ax,
 			**kwargs,
 		)
-
 
 	def plot_D95_equilibrium(
 		self,
@@ -599,7 +647,6 @@ class Engine():
 				D48_calib_coefs_n = args[-N48:]
 
 				params = _lmfit.Parameters()
-				a0, a2 = _D47_approx_calib_coefs
 				params.add('D47eq', value = D47_n)
 
 				D47_u = _cd.uarray([_uc.ufloat(D47_n, D47.s[i])])
@@ -607,20 +654,32 @@ class Engine():
 				D47_calib_coefs_u = _cd.uarray(_uc.correlated_values(D47_calib_coefs_n, self.D47_coefs.covar))
 				D48_calib_coefs_u = _cd.uarray(_uc.correlated_values(D48_calib_coefs_n, self.D48_coefs.covar))
 
-				def cost_fun(
-					p,
+				D47i = D4x_calib_function(
+					self.T_interp,
+					D47_calib_coefs_u,
+					return_without_uncertainties = False,
 					ignore_calib_uncertainties = ignore_calib_uncertainties,
-				):
-					if ignore_calib_uncertainties:
-						R = _cd.uarray(_np.concatenate((
-							D47_u - p['D47eq'],
-							D48_u - self.D48_as_function_of_D47(p['D47eq']),
-						)))
-					else: ####### This is where it is difficult. How do I get sigma for that value of D47 ???
-						pass
+				)
+
+				D48i = D4x_calib_function(
+					self.T_interp,
+					D48_calib_coefs_u,
+					return_without_uncertainties = False,
+					ignore_calib_uncertainties = ignore_calib_uncertainties,
+				)
+
+				D47_interp = uarray_compatible_interp(D47i.n, D47i)
+				D48_interp = uarray_compatible_interp(D47i.n, D48i)
+
+				def cost_fun(p):
+					R = _cd.uarray(_np.concatenate((
+						D47_u - D47_interp(p['D47eq'].value),
+						D48_u - D48_interp(p['D47eq'].value),
+					)))
 
 					invS = _np.linalg.inv(R.covar)
 					L = _cholesky(invS)
+
 
 					return L @ R.n
 
@@ -633,20 +692,37 @@ class Engine():
 			wrapped_fun = _uc.wrap(fun)
 			D47eq[i] = wrapped_fun(D47[i], D48[i], *self.D47_coefs, *self.D48_coefs)
 
-		if ignore_calib_uncertainties:
-			R = _cd.uarray(_np.concatenate((
-				D47 - D47eq.n,
-				D48 - self.D48_as_function_of_D47(D47eq.n),
-			)))
+		D47i = D4x_calib_function(
+			self.T_interp,
+			self.D47_coefs,
+			return_without_uncertainties = False,
+			ignore_calib_uncertainties = ignore_calib_uncertainties,
+		)
 
-			p = _np.zeros((N,))
-			for k in range(N):
-				r = R[k::N]
-				z2 = r.m
-				p[k] = 1-_chi2.cdf(z2, 1)
+		D48i = D4x_calib_function(
+			self.T_interp,
+			self.D48_coefs,
+			return_without_uncertainties = False,
+			ignore_calib_uncertainties = ignore_calib_uncertainties,
+		)
 
-			return D47eq, p
+		D47_interp = uarray_compatible_interp(D47i.n, D47i)
+		D48_interp = uarray_compatible_interp(D47i.n, D48i)
 
+		R = _cd.uarray(_np.concatenate((
+			D47 - D47_interp(D47eq.n),
+			D48 - D48_interp(D47eq.n),
+		)))
+
+		p = _np.zeros((N,))
+		for k in range(N):
+			r = R[k::N]
+			z2 = r.m
+			p[k] = 1-_chi2.cdf(z2, 1)
+
+		D48eq = D48_interp(D47eq)
+
+		return D47eq, D48eq, p
 
 	#### Temperature estimates ####
 	def nearest_Teq(
