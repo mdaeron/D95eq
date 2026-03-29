@@ -18,11 +18,15 @@ Y = data['D48']
 
 D47eq, D48eq, pD47 = E.nearest_D47eq(X, Y, ignore_calib_uncertainties = False)
 for _D in D47eq:
-	Ti, p = E.Teq_pdf(_D)
-	_ppl.plot(Ti, p, 'r-')
-	_ppl.xlabel('T')
-	_ppl.ylabel('PDF')
-
+	for ignore_calib_uncertainties, color in (
+		(True, 'r-'),
+		(False, 'b-'),
+	):
+		Ti, p = E.Teq_pdf(_D, ignore_calib_uncertainties = ignore_calib_uncertainties)
+		_ppl.plot(Ti, p, color)
+_ppl.xlabel('T')
+_ppl.ylabel('PDF')
+# _ppl.show()
 _ppl.savefig(f'pdfs-example.pdf')
 
 Teq, p = E.nearest_Teq(X, Y)

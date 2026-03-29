@@ -69,8 +69,10 @@ for sample, t, tqmc, tp, tpqmc, d47 in zip(data['Sample'], Teq, T_qmc.T, Tp, Tp_
 	_ppl.xlabel('$T_{eq}$   [°C]')
 	_ppl.ylabel('PDF')
 	_ppl.yticks([])
-	Ti, p = E.Teq_pdf(d47)
-	_ppl.plot(Ti, p/p.sum()/(Ti[1]-Ti[0])*(xi[1]-xi[0])*stats.norm.pdf(xi, t.n, t.s).sum(), 'r-')
+	Ti, p = E.Teq_pdf(d47, ignore_calib_uncertainties = True)
+	_ppl.plot(Ti, p, 'r-')
+	Ti, p = E.Teq_pdf(d47, ignore_calib_uncertainties = False)
+	_ppl.plot(Ti, p, 'b-')
 	fig.savefig(f'pdf_{sample}.pdf')
 
 

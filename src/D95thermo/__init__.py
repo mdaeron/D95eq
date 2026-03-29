@@ -34,7 +34,7 @@ from scipy.optimize import fsolve as _fsolve
 from numpy.typing import ArrayLike
 from typing_extensions import Annotated as _Annotated
 from typer import rich_utils as _rich_utils
-from scipy.interpolate import interp1d as _interp1d
+# from scipy.interpolate import interp1d as _interp1d
 
 
 #### Utility variables and functions ####
@@ -57,18 +57,72 @@ def uarray_compatible_interp(xi, yi):
 		lambda x: ufloat_compatible_interp(xi, yi, x)
 	)
 
-def transform_pdf_monotonic(f_inv, df_inv, mu_x, sigma_x, yi):
-	"""
-	Exact PDF for monotonic f using change of variables:
-		p_Y(y) = p_X(f⁻¹(y)) · |df⁻¹/dy|
+# def transform_pdf_monotonic_no_ufloats(f_inv, df_inv, mu_x, sigma_x, yi):
+# 	"""
+# 	Exact PDF for monotonic f using change of variables:
+# 		p_Y(y) = p_X(f⁻¹(y)) · |df⁻¹/dy|
 
-	Args:
-		f_inv:   inverse of f
-		df_inv:  derivative of f_inv
-	"""
-	xi = f_inv(yi)
-	px = _norm.pdf(xi, loc = mu_x, scale = sigma_x)
-	return px * _np.abs(df_inv(yi))
+# 	Args:
+# 		f_inv:   inverse of f
+# 		df_inv:  derivative of f_inv
+# 	"""
+# 	xi = f_inv(yi)
+# 	px = _norm.pdf(xi, loc = mu_x, scale = sigma_x)
+# 	return px * _np.abs(df_inv(yi))
+
+def transform_pdf_monotonic(f_inv, df_inv, mu_x, sigma_x, yi):
+
+	if not _np.allclose(_np.diff(yi), yi[1] - yi[0]):
+		raise ValueError("yi must be regularly spaced")
+
+	xi = f_inv(yi) # may be floats or ufloats, depending on f_inv
+	# print('xi:', type(xi[0]))
+
+	try:
+		xi_nom = xi.n
+		sigma_xi = xi.s
+		has_ufloats = True
+	except AttributeError:
+		xi_nom = xi
+		has_ufloats = False
+	# print(f'has_ufloats = {has_ufloats}')
+
+
+	# Jacobian weights (account for irregular xi spacing)
+	try:
+		df_inv_nom = df_inv(yi).n
+	except AttributeError:
+		df_inv_nom = df_inv(yi)
+
+	w_i = _norm.pdf(xi_nom, loc = mu_x, scale = sigma_x) * _np.abs(df_inv_nom)
+
+	if not has_ufloats:
+		return w_i / (_np.trapezoid(w_i, yi))
+
+	# Propagate sigma from x-space to y-space via Jacobian: sigma_y = sigma_x / abs( dx/dy )
+	sigma_yi = sigma_xi / _np.abs(df_inv_nom)
+
+	# Convolution of Gaussians: each grid point j contributes N(yi; yj, σ_yj²) scaled by w_j
+	gaussians = _norm.pdf(
+		yi[:, None],
+		loc = yi[None, :],
+		scale = sigma_yi[None, :]
+	) # NOTE: nice syntax to reshape ndarrays, perhaps use this in D4x_calib_function?
+
+	pdf = (gaussians * w_i[None, :]).sum(axis = 1)
+
+	return pdf / (_np.trapezoid(pdf, yi))
+
+
+
+
+
+
+
+
+
+
+
 
 _D47_approx_calib_coefs = [0.159502986, 38588.1545] # computed from code in comments below
 
@@ -200,17 +254,6 @@ def D4x_calib_derivative(
 		ignore_calib_uncertainties = ignore_calib_uncertainties,
 	)
 
-
-	D4x = (
-		_np.expand_dims(_cd.nv(coefs) if ignore_calib_uncertainties else coefs, 1) # shape = (coefs.size, 1)
-		* _np.expand_dims((T+273.15)**-1, 0)                                       # shape = (1, T.size)
-		** _np.expand_dims(degs, 1)                                                # shape = (coefs.size, 1)
-	).sum(axis = 0 if isinstance(T, _np.ndarray) else None)
-
-	if D4x.ndim == 0:
-		return D4x.tolist().n if return_without_uncertainties else D4x.tolist()
-	return D4x.n if return_without_uncertainties else D4x
-
 #### Plotting functions ####
 def conf_ellipse(
 	X: (_cd.uarray | _np.ndarray | _uc.UFloat | float),
@@ -270,6 +313,9 @@ def conf_ellipse(
 
 	return (*out,)
 
+class _Interpolation():
+	pass
+
 class Engine():
 	"""
 	Underlying engine to compute and plot nearest equilibrium temperatures and projected
@@ -322,22 +368,55 @@ class Engine():
 		* `D48_coefs`: `ndarray` or `uarray` of coefficients to use instead of default ones, ordered as (a0, a1, a2...)
 		"""
 
-		self.T_interp = _np.linspace(
-			(Tmax_interp+273.15)**-2,
-			(Tmin_interp+273.15)**-2,
-			N_interp,
-		)**-0.5 - 273.15
-
 		self.D47_coefs = Engine.D47_calib_coefs if D47_coefs is None else D47_coefs
 		"""The Δ<sub>47</sub> calibration coefficients used by this `Engine` instance"""
 
 		self.D48_coefs = Engine.D48_calib_coefs if D48_coefs is None else D48_coefs
 		"""The Δ<sub>48</sub> calibration coefficients used by this `Engine` instance"""
 
-		# (
-		# 	self._D47_as_function_of_D47,
-		# 	self._D48_as_function_of_D47,
-		# ) = self._interp(Tmin_interp, Tmax_interp, N_interp)
+		self.interp = _Interpolation()
+		"""
+		Holds equilibrium Δ<sub>47</sub> and Δ<sub>48</sub> values (ufloats) interpolated
+		along an array of T values (regularly spaced increments of 1/T<sup>2</sup>).
+
+		* `interp.T`: interpolation T values (floats) in regularly spaced increments of 1/T<sup>2</sup>
+		* `interp.D47`: Equilibrium Δ<sub>47</sub> values (ufloats) interpolated along `interp.T`
+		* `interp.D48`: Equilibrium Δ<sub>48</sub> values (ufloats) interpolated along `interp.T`
+		* `interp.D47_no_calib_errors`: Equilibrium Δ<sub>47</sub> values (ufloats) interpolated along `interp.T`,
+		ignoring calibration uncertainties
+		* `interp.D48_no_calib_errors`: Equilibrium Δ<sub>48</sub> values (ufloats) interpolated along `interp.T`,
+		ignoring calibration uncertainties
+		"""
+
+		self.interp.T = _np.linspace(
+			(Tmax_interp+273.15)**-2,
+			(Tmin_interp+273.15)**-2,
+			N_interp,
+		)**-0.5 - 273.15
+
+		self.interp.D47 = self.D47_calib_function(
+			self.interp.T,
+			return_without_uncertainties = False,
+			ignore_calib_uncertainties = False,
+		)
+
+		self.interp.D47_no_calib_errors = self.D47_calib_function(
+			self.interp.T,
+			return_without_uncertainties = False,
+			ignore_calib_uncertainties = True,
+		)
+
+		self.interp.D48 = self.D48_calib_function(
+			self.interp.T,
+			return_without_uncertainties = False,
+			ignore_calib_uncertainties = False,
+		)
+
+		self.interp.D48_no_calib_errors = self.D48_calib_function(
+			self.interp.T,
+			return_without_uncertainties = False,
+			ignore_calib_uncertainties = True,
+		)
 
 	def D47_calib_function(
 		self,
@@ -368,69 +447,24 @@ class Engine():
 	D47_calib_function.__doc__ = D4x_calib_function.__doc__
 	D48_calib_function.__doc__ = D4x_calib_function.__doc__
 
-	def _interp(
-		self,
-		Tmin: float,
-		Tmax: float,
-		N_interp: float,
-	):
-		Ti = _np.linspace(
-			(Tmax+273.15)**-2,
-			(Tmin+273.15)**-2,
-			N_interp,
-		)**-0.5 - 273.15
-		print(Ti)
-
-		D47i, = self.D47_calib_function(
-			Ti,
-			return_without_uncertainties = False,
-			ignore_calib_uncertainties = False,
-		),
-		D48i, = self.D48_calib_function(
-			Ti,
-			return_without_uncertainties = False,
-			ignore_calib_uncertainties = False,
-		),
-
-		D47_interp = _interp1d(D47i.n, D47i, kind='linear')
-		D48_interp = _interp1d(D47i.n, D48i, kind='linear')
-
-		return (D47_interp, D48_interp)
-
-	# def _interpolate_D48_as_function_of_D47(
-	# 	self,
-	# 	D47min: float,
-	# 	D47max: float,
-	# 	N_interp: float,
-	# ):
-	# 	a0, a2 = _D47_approx_calib_coefs
-	# 	_D47i = _np.linspace(D47min, D47max, N_interp)
-	# 	Ti = ((_D47i - a0) / a2)**-0.5 - 273.15
-	# 	D47i, = self.D47_calib_function(Ti, return_without_uncertainties = True),
-	# 	D48i, = self.D48_calib_function(Ti, return_without_uncertainties = True),
-	# 	return (
-	# 		_interp1d(
-	# 			D47i,
-	# 			D48i,
-	# 			kind = 'linear',
-	# 		), # interpolation
-	# 		_interp1d(
-	# 			(D47i[1:] + D47i[:-1]) / 2,
-	# 			(D48i[1:] - D48i[:-1]) / (D47i[1:] - D47i[:-1]),
-	# 			kind = 'linear',
-	# 		), # derivative of the interpolation
-	# 	)
-
 	def D47_as_function_of_D47(
 		self,
 		D47,
 	):
+		"""
+		Provided with one or more Δ<sub>47</sub> values (floats), return ufloats for the corresponding
+		equilibrium Δ<sub>47</sub> values (ufloats with Δ<sub>47</sub> calibration uncertainties).
+		"""
 		return self._D47_as_function_of_D47(D47)
 
 	def D48_as_function_of_D47(
 		self,
 		D47,
 	):
+		"""
+		Provided with one or more Δ<sub>47</sub> values (floats), return ufloats for the corresponding
+		equilibrium Δ<sub>48</sub> values (ufloats with Δ<sub>47</sub> calibration uncertainties).
+		"""
 		return self._D48_as_function_of_D47(D47)
 
 	def T_ellipse(
@@ -694,14 +728,14 @@ class Engine():
 				D48_calib_coefs_u = _cd.uarray(_uc.correlated_values(D48_calib_coefs_n, self.D48_coefs.covar))
 
 				D47i = D4x_calib_function(
-					self.T_interp,
+					self.interp.T,
 					D47_calib_coefs_u,
 					return_without_uncertainties = False,
 					ignore_calib_uncertainties = ignore_calib_uncertainties,
 				)
 
 				D48i = D4x_calib_function(
-					self.T_interp,
+					self.interp.T,
 					D48_calib_coefs_u,
 					return_without_uncertainties = False,
 					ignore_calib_uncertainties = ignore_calib_uncertainties,
@@ -731,19 +765,21 @@ class Engine():
 			wrapped_fun = _uc.wrap(fun)
 			D47eq[i] = wrapped_fun(D47[i], D48[i], *self.D47_coefs, *self.D48_coefs)
 
-		D47i = D4x_calib_function(
-			self.T_interp,
-			self.D47_coefs,
-			return_without_uncertainties = False,
-			ignore_calib_uncertainties = ignore_calib_uncertainties,
-		)
+		# D47i = D4x_calib_function(
+		# 	self.interp.T,
+		# 	self.D47_coefs,
+		# 	return_without_uncertainties = False,
+		# 	ignore_calib_uncertainties = ignore_calib_uncertainties,
+		# )
+		D47i = self.interp.D47_no_calib_errors if ignore_calib_uncertainties else self.interp.D47
 
-		D48i = D4x_calib_function(
-			self.T_interp,
-			self.D48_coefs,
-			return_without_uncertainties = False,
-			ignore_calib_uncertainties = ignore_calib_uncertainties,
-		)
+		# D48i = D4x_calib_function(
+		# 	self.interp.T,
+		# 	self.D48_coefs,
+		# 	return_without_uncertainties = False,
+		# 	ignore_calib_uncertainties = ignore_calib_uncertainties,
+		# )
+		D48i = self.interp.D48_no_calib_errors if ignore_calib_uncertainties else self.interp.D48
 
 		D47_interp = uarray_compatible_interp(D47i.n, D47i)
 		D48_interp = uarray_compatible_interp(D47i.n, D48i)
@@ -763,37 +799,48 @@ class Engine():
 
 		return D47eq, D48eq, p
 
-	def Teq_pdf(
+	def Teq_pdf( # TODO: account for calib uncertainties
 		self,
 		D47: _uc.ufloat,
 		Ti: (ArrayLike | None) = None,
 		Ni: int = 201,
+		default_Ti_sigmas: float = 4.0,
+		ignore_calib_uncertainties: bool = False,
 	):
-		D47i = D4x_calib_function(
-			self.T_interp,
-			self.D47_coefs,
-			return_without_uncertainties = False,
-		)
 
-		# D47_interp = uarray_compatible_interp(D47i.n, D47i)
-		T_interp = uarray_compatible_interp(D47i.n, self.T_interp)
 
-		if Ti is None:
+		if Ti is None: # compute suitable Ti values
+
+			# build interpolating function
+			_f = uarray_compatible_interp(self.interp.D47.n, self.interp.T)
+
+			# compute interpolated Ti values
 			Ti = _np.linspace(
-				T_interp(D47.n + 4 * D47.s),
-				T_interp(D47.n - 4 * D47.s),
+				_f(D47.n + default_Ti_sigmas * D47.s),
+				_f(D47.n - default_Ti_sigmas * D47.s),
 				Ni,
 			)
 
-		pi = transform_pdf_monotonic(
-			f_inv   = lambda T: D4x_calib_function(T, self.D47_coefs, return_without_uncertainties = True),
-			df_inv  = lambda T: D4x_calib_derivative(T, self.D47_coefs, return_without_uncertainties = True),
+		pdf = transform_pdf_monotonic(
+			f_inv   = lambda T: D4x_calib_function(
+				T,
+				self.D47_coefs,
+				return_without_uncertainties = ignore_calib_uncertainties,
+				ignore_calib_uncertainties = ignore_calib_uncertainties,
+			),
+			df_inv  = lambda T: D4x_calib_derivative(
+				T,
+				self.D47_coefs,
+				return_without_uncertainties = ignore_calib_uncertainties,
+				ignore_calib_uncertainties = ignore_calib_uncertainties,
+			),
 			mu_x    = D47.n,
 			sigma_x = D47.s,
 			yi      = Ti,
 		)
+		# print(pdf.sum(), f"ignore_calib_uncertainties = {ignore_calib_uncertainties}")
 
-		return Ti, pi
+		return Ti, pdf
 
 	#### Temperature estimates ####
 	def nearest_Teq(
