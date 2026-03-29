@@ -418,6 +418,15 @@ class Engine():
 			ignore_calib_uncertainties = True,
 		)
 
+		self.interp.D47_as_function_of_D47 = uarray_compatible_interp(self.interp.D47.n, self.interp.D47)
+		self.interp.D48_as_function_of_D47 = uarray_compatible_interp(self.interp.D47.n, self.interp.D48)
+
+	def D47_ufloat_as_function_of_D47_float(self, D47):
+		return _cd.uarray(self.interp.D47_as_function_of_D47(D47))
+
+	def D48_ufloat_as_function_of_D47_float(self, D47):
+		return _cd.uarray(self.interp.D48_as_function_of_D47(D47))
+
 	def D47_calib_function(
 		self,
 		T: (float | _uc.UFloat | _cd.uarray),

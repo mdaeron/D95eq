@@ -15,7 +15,7 @@ coefs:
 	cd calib_coefs; uv run calib_coefs.py
 
 pytest:
-	uv run pytest -s
+	uv run pytest # -s
 
 test:
 	cd test; uv run test.py
