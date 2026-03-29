@@ -27,6 +27,7 @@ from uncertainties import unumpy as _unp
 from matplotlib import pyplot as _ppl
 from matplotlib.patches import Ellipse as _Ellipse
 from scipy.stats import chi2 as _chi2
+from scipy.stats import norm as _norm
 from scipy.linalg import eigh as _eigh
 from scipy.linalg import cholesky as _cholesky
 from scipy.optimize import fsolve as _fsolve
@@ -55,6 +56,19 @@ def uarray_compatible_interp(xi, yi):
 	return _np.vectorize(
 		lambda x: ufloat_compatible_interp(xi, yi, x)
 	)
+
+def transform_pdf_monotonic(f_inv, df_inv, mu_x, sigma_x, yi):
+	"""
+	Exact PDF for monotonic f using change of variables:
+		p_Y(y) = p_X(f⁻¹(y)) · |df⁻¹/dy|
+
+	Args:
+		f_inv:   inverse of f
+		df_inv:  derivative of f_inv
+	"""
+	xi = f_inv(yi)
+	px = _norm.pdf(xi, loc = mu_x, scale = sigma_x)
+	return px * _np.abs(df_inv(yi))
 
 _D47_approx_calib_coefs = [0.159502986, 38588.1545] # computed from code in comments below
 
@@ -171,6 +185,31 @@ def D4x_calib_function(
 		return D4x.tolist().n if return_without_uncertainties else D4x.tolist()
 	return D4x.n if return_without_uncertainties else D4x
 
+def D4x_calib_derivative(
+	T: (float | _uc.UFloat | _cd.uarray | ArrayLike),
+	coefs: _cd.uarray,
+	return_without_uncertainties: bool = False,
+	ignore_calib_uncertainties: bool = False,
+) -> (float | _uc.UFloat | _cd.uarray | ArrayLike):
+	dcoefs = -_np.arange(len(coefs)) * coefs
+	dcoefs = _cd.uarray((dcoefs[0], *dcoefs))
+	return D4x_calib_function(
+		T,
+		dcoefs,
+		return_without_uncertainties = return_without_uncertainties,
+		ignore_calib_uncertainties = ignore_calib_uncertainties,
+	)
+
+
+	D4x = (
+		_np.expand_dims(_cd.nv(coefs) if ignore_calib_uncertainties else coefs, 1) # shape = (coefs.size, 1)
+		* _np.expand_dims((T+273.15)**-1, 0)                                       # shape = (1, T.size)
+		** _np.expand_dims(degs, 1)                                                # shape = (coefs.size, 1)
+	).sum(axis = 0 if isinstance(T, _np.ndarray) else None)
+
+	if D4x.ndim == 0:
+		return D4x.tolist().n if return_without_uncertainties else D4x.tolist()
+	return D4x.n if return_without_uncertainties else D4x
 
 #### Plotting functions ####
 def conf_ellipse(
@@ -616,7 +655,7 @@ class Engine():
 		ignore_calib_uncertainties: bool = False,
 	):
 		"""
-		Returns a `correldata.uarray` of *equilibrium* Δ<sub>47</sub> values, each of which is
+		Computes a `correldata.uarray` of *equilibrium* Δ<sub>47</sub> values, each of which is
 		the closest (in the OGLS sense) to one (Δ<sub>47</sub>, Δ<sub>48</sub>) observation
 		considered independently of the others.
 
@@ -723,6 +762,38 @@ class Engine():
 		D48eq = D48_interp(D47eq)
 
 		return D47eq, D48eq, p
+
+	def Teq_pdf(
+		self,
+		D47: _uc.ufloat,
+		Ti: (ArrayLike | None) = None,
+		Ni: int = 201,
+	):
+		D47i = D4x_calib_function(
+			self.T_interp,
+			self.D47_coefs,
+			return_without_uncertainties = False,
+		)
+
+		# D47_interp = uarray_compatible_interp(D47i.n, D47i)
+		T_interp = uarray_compatible_interp(D47i.n, self.T_interp)
+
+		if Ti is None:
+			Ti = _np.linspace(
+				T_interp(D47.n + 4 * D47.s),
+				T_interp(D47.n - 4 * D47.s),
+				Ni,
+			)
+
+		pi = transform_pdf_monotonic(
+			f_inv   = lambda T: D4x_calib_function(T, self.D47_coefs, return_without_uncertainties = True),
+			df_inv  = lambda T: D4x_calib_derivative(T, self.D47_coefs, return_without_uncertainties = True),
+			mu_x    = D47.n,
+			sigma_x = D47.s,
+			yi      = Ti,
+		)
+
+		return Ti, pi
 
 	#### Temperature estimates ####
 	def nearest_Teq(

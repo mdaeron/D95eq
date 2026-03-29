@@ -17,10 +17,11 @@ data = read_data_from_file('example_data.csv')
 X = data['D47']
 Y = data['D48']
 
+D47eq, D48eq, pD47 = E.nearest_D47eq(X, Y)
 Tp, Tp_qmc = E.projected_Teq(X, Y, slope, estimate_pdf = True, N_qmc = 2**16)
 Teq, p, T_qmc = E.nearest_Teq(X, Y, estimate_pdf = True, N_qmc = 2**13)
 
-for sample, t, tqmc, tp, tpqmc in zip(data['Sample'], Teq, T_qmc.T, Tp, Tp_qmc.T):
+for sample, t, tqmc, tp, tpqmc, d47 in zip(data['Sample'], Teq, T_qmc.T, Tp, Tp_qmc.T, D47eq):
 
 	fig = _ppl.figure()
 	_ppl.hist(
@@ -68,6 +69,8 @@ for sample, t, tqmc, tp, tpqmc in zip(data['Sample'], Teq, T_qmc.T, Tp, Tp_qmc.T
 	_ppl.xlabel('$T_{eq}$   [°C]')
 	_ppl.ylabel('PDF')
 	_ppl.yticks([])
+	Ti, p = E.Teq_pdf(d47)
+	_ppl.plot(Ti, p/p.sum()/(Ti[1]-Ti[0])*(xi[1]-xi[0])*stats.norm.pdf(xi, t.n, t.s).sum(), 'r-')
 	fig.savefig(f'pdf_{sample}.pdf')
 
 
