@@ -17,8 +17,8 @@ def test_interp():
 
 			E.plot_D95_equilibrium(lw = 0.5)
 			xi = linspace(0.7, 0.2, 51)
-			yi = E.interpolate_D48_as_function_of_D47(xi)
-			plot(xi, yi, 'r+')
+			yi = E.D48_as_function_of_D47(xi)
+			plot(xi, yi.n, 'r+')
 
 			ax.autoscale_view()
 			fig.savefig(f'tests/interp_test_{k:03.0f}.pdf')

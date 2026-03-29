@@ -455,7 +455,7 @@ class Engine():
 		Provided with one or more Δ<sub>47</sub> values (floats), return ufloats for the corresponding
 		equilibrium Δ<sub>47</sub> values (ufloats with Δ<sub>47</sub> calibration uncertainties).
 		"""
-		return self._D47_as_function_of_D47(D47)
+		return self.interp.D47_as_function_of_D47(D47)
 
 	def D48_as_function_of_D47(
 		self,
@@ -465,7 +465,7 @@ class Engine():
 		Provided with one or more Δ<sub>47</sub> values (floats), return ufloats for the corresponding
 		equilibrium Δ<sub>48</sub> values (ufloats with Δ<sub>47</sub> calibration uncertainties).
 		"""
-		return self._D48_as_function_of_D47(D47)
+		return self.interp.D48_as_function_of_D47(D47)
 
 	def T_ellipse(
 		self,
