@@ -9,9 +9,8 @@ Estimate carbonate formation temperatures from dual clumped isotope measurements
 
 __author__    = 'Mathieu Daëron'
 __contact__   = 'mathieu@daeron.fr'
-__copyright__ = 'Copyright (c) 2025 Mathieu Daëron'
 __license__   = 'MIT License - https://opensource.org/licenses/MIT'
-__date__      = '2026-03-28'
+__date__      = '2026-03-30'
 
 from .__version__ import __version__ as __version__
 
@@ -36,6 +35,9 @@ from typing_extensions import Annotated as _Annotated
 from typer import rich_utils as _rich_utils
 
 
+### Mathematical functions ###
+
+
 def ufloat_compatible_interp(xi, yi, x):
 	xn = x.nominal_value if isinstance(x, _uc.UFloat) else float(x)
 	idx = _np.searchsorted(xi, xn)
@@ -49,10 +51,12 @@ def ufloat_compatible_interp(xi, yi, x):
 	t = (x - x0) / (x1 - x0)
 	return y0 + t * (y1 - y0)
 
+
 def uarray_compatible_interp(xi, yi):
 	return _np.vectorize(
 		lambda x: ufloat_compatible_interp(xi, yi, x)
 	)
+
 
 def transform_pdf_monotonic(f_inv, df_inv, mu_x, sigma_x, yi):
 
@@ -94,8 +98,11 @@ def transform_pdf_monotonic(f_inv, df_inv, mu_x, sigma_x, yi):
 
 	return pdf / (_np.trapezoid(pdf, yi))
 
-_D47_approx_calib_coefs = [0.159502986, 38588.1545] # computed from code in comments below
 
+#### Calibration variables and functions ####
+
+
+_D47_approx_calib_coefs = [0.159502986, 38588.1545] # computed from code in comments below
 # from D47calib import OGLS23 as _OGLS23
 # from D47calib import D47calib as _D47calib
 #
@@ -107,12 +114,12 @@ _D47_approx_calib_coefs = [0.159502986, 38588.1545] # computed from code in comm
 # 	sD47 = _OGLS23.sD47,
 # 	degrees = [0,2],
 # )
-#
 # _D47_approx_calib_coefs = [_D47_approx.bfp['a0'], _D47_approx.bfp['a2']]
+
 
 def _compute_D48_calib_coefficients(reprocess = False):
 	"""
-	Based on Fiebig et al. (2021)
+	Based on Fiebig et al. (2021, 2024)
 	"""
 
 	# D64 predictions
@@ -171,8 +178,13 @@ def _compute_D48_calib_coefficients(reprocess = False):
 		# Caution: because Fiebig et al. ignored T uncertainties, these
 		# coefficeients have smaller uncertainties than those computed above.
 		b0, b1 = _uc.correlated_values(
-			[0.12135157920099604, 1.0379702801201238],
-			[[ 7.39697438e-06, -6.90467053e-05], [-6.90467053e-05,  1.46002771e-03]],
+			[
+				0.12135157920099604,
+				1.0379702801201238,
+			], [
+				[ 7.39697438e-06, -6.90467053e-05],
+				[-6.90467053e-05,  1.46002771e-03],
+			],
 		)
 
 	a0 = b0
@@ -183,7 +195,7 @@ def _compute_D48_calib_coefficients(reprocess = False):
 
 	return _cd.uarray([a0, a1, a2, a3, a4])
 
-#### Calibration variables and functions ####
+
 def D4x_calib_function(
 	T: (float | _uc.UFloat | _cd.uarray | ArrayLike),
 	coefs: _cd.uarray,
@@ -208,6 +220,7 @@ def D4x_calib_function(
 		return D4x.tolist().n if return_without_uncertainties else D4x.tolist()
 	return D4x.n if return_without_uncertainties else D4x
 
+
 def D4x_calib_derivative(
 	T: (float | _uc.UFloat | _cd.uarray | ArrayLike),
 	coefs: _cd.uarray,
@@ -223,7 +236,10 @@ def D4x_calib_derivative(
 		ignore_calib_uncertainties = ignore_calib_uncertainties,
 	)
 
+
 #### Plotting functions ####
+
+
 def conf_ellipse(
 	X: (_cd.uarray | _np.ndarray | _uc.UFloat | float),
 	Y: (_cd.uarray | _np.ndarray | _uc.UFloat | float) = None,
@@ -281,6 +297,9 @@ def conf_ellipse(
 		)
 
 	return (*out,)
+
+
+### D95thermo Engine implementation ###
 
 class _Interpolation():
 	pass
@@ -1101,6 +1120,10 @@ class Engine():
 			return Ti, pdf, Tqmc
 
 		return Ti, pdf
+
+
+### Utilities and CLI ###
+
 
 def save_Teq_report(
 	X,
