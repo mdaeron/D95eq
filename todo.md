@@ -1,2 +1,3 @@
 * Clean up docstrings
 * Add `Teq_pdf()` to `D47calib`
+* Implement exact 95 % confidence band around equilibrium curve
