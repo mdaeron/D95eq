@@ -17,8 +17,8 @@ def test_interp():
 
 			E.plot_D95_equilibrium(lw = 0.5)
 			xi = linspace(0.7, 0.2, 51)
-			yi = E.D48_ufloat_as_function_of_D47_float(xi)
-			xi = E.D47_ufloat_as_function_of_D47_float(xi)
+			yi = E.D48u_as_function_of_D47n(xi)
+			xi = E.D47u_as_function_of_D47n(xi)
 			conf_ellipse(xi, yi)
 			plot(xi.n, yi.n, 'r+')
 

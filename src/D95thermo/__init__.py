@@ -418,14 +418,37 @@ class Engine():
 			ignore_calib_uncertainties = True,
 		)
 
-		self.interp.D47_as_function_of_D47 = uarray_compatible_interp(self.interp.D47.n, self.interp.D47)
-		self.interp.D48_as_function_of_D47 = uarray_compatible_interp(self.interp.D47.n, self.interp.D48)
+		self.interp.D47u_as_function_of_D47n = uarray_compatible_interp(self.interp.D47.n, self.interp.D47)
+		self.interp.D48u_as_function_of_D47n = uarray_compatible_interp(self.interp.D47.n, self.interp.D48)
 
-	def D47_ufloat_as_function_of_D47_float(self, D47):
-		return _cd.uarray(self.interp.D47_as_function_of_D47(D47))
+		#inverse D47 calibration (ignoring calibration errors)
+		self.interp.Teq_as_function_of_D47n = uarray_compatible_interp(self.interp.D47.n, self.interp.T)
+		#inverse D47 calibration (including calibration errors)
+		self.interp.Teq_as_function_of_D47u = uarray_compatible_interp(self.interp.D47, self.interp.T)
 
-	def D48_ufloat_as_function_of_D47_float(self, D47):
-		return _cd.uarray(self.interp.D48_as_function_of_D47(D47))
+	def T_as_function_of_D47(
+		self,
+		D47,
+		ignore_calib_uncertainties = False,
+	):
+		if ignore_calib_uncertainties:
+			return _cd.uarray(self.interp.Teq_as_function_of_D47n(D47))
+		else:
+			return _cd.uarray(self.interp.Teq_as_function_of_D47u(D47))
+
+	def D47u_as_function_of_D47n(self, D47):
+		"""
+		Provided with one or more Δ<sub>47</sub> values (floats), return ufloats for the corresponding
+		equilibrium Δ<sub>47</sub> values (ufloats with Δ<sub>47</sub> calibration uncertainties).
+		"""
+		return _cd.uarray(self.interp.D47u_as_function_of_D47n(D47))
+
+	def D48u_as_function_of_D47n(self, D47):
+		"""
+		Provided with one or more Δ<sub>47</sub> values (floats), return ufloats for the corresponding
+		equilibrium Δ<sub>48</sub> values (ufloats with Δ<sub>48</sub> calibration uncertainties).
+		"""
+		return _cd.uarray(self.interp.D48u_as_function_of_D47n(D47))
 
 	def D47_calib_function(
 		self,
@@ -456,25 +479,25 @@ class Engine():
 	D47_calib_function.__doc__ = D4x_calib_function.__doc__
 	D48_calib_function.__doc__ = D4x_calib_function.__doc__
 
-	def D47_as_function_of_D47(
-		self,
-		D47,
-	):
-		"""
-		Provided with one or more Δ<sub>47</sub> values (floats), return ufloats for the corresponding
-		equilibrium Δ<sub>47</sub> values (ufloats with Δ<sub>47</sub> calibration uncertainties).
-		"""
-		return self.interp.D47_as_function_of_D47(D47)
+	# def D47_as_function_of_D47(
+	# 	self,
+	# 	D47,
+	# ):
+	# 	"""
+	# 	Provided with one or more Δ<sub>47</sub> values (floats), return ufloats for the corresponding
+	# 	equilibrium Δ<sub>47</sub> values (ufloats with Δ<sub>47</sub> calibration uncertainties).
+	# 	"""
+	# 	return self.interp.D47_as_function_of_D47(D47)
 
-	def D48_as_function_of_D47(
-		self,
-		D47,
-	):
-		"""
-		Provided with one or more Δ<sub>47</sub> values (floats), return ufloats for the corresponding
-		equilibrium Δ<sub>48</sub> values (ufloats with Δ<sub>47</sub> calibration uncertainties).
-		"""
-		return self.interp.D48_as_function_of_D47(D47)
+	# def D48_as_function_of_D47(
+	# 	self,
+	# 	D47,
+	# ):
+	# 	"""
+	# 	Provided with one or more Δ<sub>47</sub> values (floats), return ufloats for the corresponding
+	# 	equilibrium Δ<sub>48</sub> values (ufloats with Δ<sub>47</sub> calibration uncertainties).
+	# 	"""
+	# 	return self.interp.D48_as_function_of_D47(D47)
 
 	def T_ellipse(
 		self,
@@ -706,13 +729,13 @@ class Engine():
 		# Compute fit residuals for p values
 		if ignore_calib_uncertainties:
 			R = _cd.uarray(_np.concatenate((
-				D47 - self.D47_ufloat_as_function_of_D47_float(D47eq.n).n,
-				D48 - self.D48_ufloat_as_function_of_D47_float(D47eq.n).n,
+				D47 - self.D47u_as_function_of_D47n(D47eq.n).n,
+				D48 - self.D48u_as_function_of_D47n(D47eq.n).n,
 			)))
 		else:
 			R = _cd.uarray(_np.concatenate((
-				D47 - self.D47_ufloat_as_function_of_D47_float(D47eq.n),
-				D48 - self.D48_ufloat_as_function_of_D47_float(D47eq.n),
+				D47 - self.D47u_as_function_of_D47n(D47eq.n),
+				D48 - self.D48u_as_function_of_D47n(D47eq.n),
 			)))
 
 		# Compute p values
@@ -723,7 +746,7 @@ class Engine():
 			p[k] = 1-_chi2.cdf(z2, 1)
 
 		# Compute D48eq
-		D48eq = self.D48_ufloat_as_function_of_D47_float(D47eq)
+		D48eq = self.D48u_as_function_of_D47n(D47eq)
 
 		return p, D48eq
 
@@ -952,13 +975,13 @@ class Engine():
 
 			if ignore_calib_uncertainties:
 				R = _cd.uarray(_np.concatenate((
-					D47 - self.D47_ufloat_as_function_of_D47_float(_D47eq).n,
-					D48 - self.D48_ufloat_as_function_of_D47_float(_D47eq).n,
+					D47 - self.D47u_as_function_of_D47n(_D47eq).n,
+					D48 - self.D48u_as_function_of_D47n(_D47eq).n,
 				)))
 			else:
 				R = _cd.uarray(_np.concatenate((
-					D47 - self.D47_ufloat_as_function_of_D47_float(_D47eq),
-					D48 - self.D48_ufloat_as_function_of_D47_float(_D47eq),
+					D47 - self.D47u_as_function_of_D47n(_D47eq),
+					D48 - self.D48u_as_function_of_D47n(_D47eq),
 				)))
 
 			invS = _np.linalg.inv(R.covar)
