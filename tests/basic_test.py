@@ -1,7 +1,23 @@
 from D95thermo import *
-from uncertainties import UFloat
+from uncertainties import UFloat, ufloat
 from correldata import uarray
 import numpy as np
+
+def test_convert_D47_to_T():
+	E = Engine()
+	for a in [ufloat(0.65, 0.01), ufloat(0.5, 0.01), ufloat(0.35, 0.003)]:
+		t1 = E.T_as_function_of_D47(a.n, ignore_calib_uncertainties = True)
+		t2 = E.T_as_function_of_D47(a.n, ignore_calib_uncertainties = False)
+		t3 = E.T_as_function_of_D47(a, ignore_calib_uncertainties = True)
+		t4 = E.T_as_function_of_D47(a, ignore_calib_uncertainties = False)
+		print(f"""
+For Δ47 = {a}, Teq = {t1:.2f}
+	* {t1:.2f} considering no uncertainties
+	* {t2:.2f} considering only calibration uncertainties
+	* {t3:.2f} considering only measurement uncertainties
+	* {t4:.2f} considering both sources of uncertainty""")
+
+
 
 def test_convert_T_float_to_D4x():
 
