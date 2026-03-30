@@ -33,7 +33,9 @@ for k, funD47eq in enumerate((
 	t1 = time.time()
 	D47eq, D48eq, p = funD47eq(X, Y)
 	t2 = time.time()
-	Tp = E.projected_Teq(X, Y, slope)
+	D47p, D48p = E.projected_D47eq(X, Y, slope)
+	Tp = E.T_as_function_of_D47(D47p)
+	Teq = E.T_as_function_of_D47(D47eq)
 
 	fig = _ppl.figure(figsize = (6.5,4.5))
 	_ppl.title("“$Δ_{95}$ thermometry” ($47+48=95$)")
@@ -43,107 +45,101 @@ for k, funD47eq in enumerate((
 	conf_ellipse(X, Y, ec = 'k')
 
 	conf_ellipse(D47eq[p >= p_cutoff], D48eq[p >= p_cutoff], ec = eq_color, fc = (*eq_color, 0.2))
-	E.T_ellipse(Tp[p < p_cutoff], ec = diseq_color, fc = (*diseq_color, 0.2))
+	conf_ellipse(D47p[p < p_cutoff], D48p[p < p_cutoff], ec = diseq_color, fc = (*diseq_color, 0.2))
 
-	for x, y, t in zip(X[p < p_cutoff], Y[p < p_cutoff], Tp[p < p_cutoff]):
-		v = _np.array([
-			E.D47_calib_function(t).n - x.n,
-			E.D48_calib_function(t).n - y.n,
-		])
-		i, j = 0.15, 0.85
-		kw = dict(
-			color = diseq_color,
-			lw = 0,
-			width = 0.001,
-			head_width = 0.005,
+	t = _uc.ufloat(0., 0.1)
+	for x, y, pv, xeq, yeq, xp, yp, teq, tp in zip(X, Y, p, D47eq, D48eq, D47p, D48p, Teq, Tp):
+
+		_ppl.text(
+			x.n, y.n + 5*y.s,
+			'($Δ_{47}, Δ_{48}$)\nobservation',
+			ha = 'center', va = 'top', size = 8,
 		)
-		_ppl.arrow(
-			x.n + i * v[0],
-			y.n + i * v[1],
-			(j-i) * v[0],
-			(j-i) * v[1],
-			**kw,
-		)
-		for s in (-1.96, +1.96):
-			i, j = 0.2, 0.85
-			_t = E.projected_Teq([x], [y], slope + s * slope.s)[0]
+
+		if pv < p_cutoff:
 			v = _np.array([
-				E.D47_calib_function(_t).n - x.n,
-				E.D48_calib_function(_t).n - y.n,
+				xp.n - x.n,
+				yp.n - y.n,
 			])
+			i, j = 0.15, 0.85
+			kw = dict(
+				color = diseq_color,
+				lw = 0,
+				width = 0.001,
+				head_width = 0.005,
+			)
 			_ppl.arrow(
 				x.n + i * v[0],
 				y.n + i * v[1],
 				(j-i) * v[0],
 				(j-i) * v[1],
-				alpha = 0.25,
 				**kw,
 			)
+			for s in (-1.96, +1.96):
+				i, j = 0.2, 0.85
 
-	t = _uc.ufloat(0., 0.1)
+				(_xeq,), (_yeq,) = E.projected_D47eq([x], [y], slope + s * slope.s)
 
-	for x, y, xeq, yeq, pv in zip(
-		X[p >= p_cutoff],
-		Y[p >= p_cutoff],
-		D47eq[p >= p_cutoff],
-		D48eq[p >= p_cutoff],
-		p[p >= p_cutoff],
-	):
-		_ppl.text(
-			x.n, y.n + 5*y.s,
-			'($Δ_{47}, Δ_{48}$)\nobservation',
-			ha = 'center', va = 'top', size = 8,
-		)
-		_ppl.text(
-			x.n, y.n + 5.5*y.s,
-			f'Equil. p-value = {pv:.2f}',
-			ha = 'center', va = 'bottom', size = 8, color = eq_color,
-		)
-		_ppl.text(
-			xeq.n + 4*xeq.s,
-			yeq.n - 5 * yeq.s,
-			f'T = {t.n:.1f}±{t.s:.1f}°C',
-			ha = 'left', va = 'top', size = 8, color = eq_color,
-		)
+				v = _np.array([
+					_xeq.n - x.n,
+					_yeq.n - y.n,
+				])
 
-	for x, y, xeq, yeq, pv in zip(
-		X[p < p_cutoff],
-		Y[p < p_cutoff],
-		D47eq[p >= p_cutoff],
-		D48eq[p >= p_cutoff],
-		p[p < p_cutoff],
-	):
-		_ppl.text(
-			x.n, y.n + 5*y.s,
-			'($Δ_{47}, Δ_{48}$)\nobservation',
-			ha = 'center', va = 'top', size = 8,
-		)
-		_ppl.text(
-			x.n, y.n + 5.5*y.s,
-			f'Equil. p-value = {pv:.0e}',
-			ha = 'center', va = 'bottom', size = 8, color = diseq_color,
-		)
-		_ppl.text(
-			E.D47_calib_function(t).n + E.D47_calib_function(t).s, E.D48_calib_function(t).n - 3 * E.D48_calib_function(t).s,
-			f'T = {t.n:.1f}±{t.s:.1f}°C',
-			ha = 'left', va = 'top', size = 8, color = diseq_color,
-		)
-		m = 0.5
-		_ppl.text(
-			(m * x.n + (1-m) * E.D47_calib_function(t).n),
-			(m * y.n + (1-m) * E.D48_calib_function(t).n),
-			'disequilibrium slope\n(with uncertainty)\n',
-			ha = 'left', va = 'bottom', size = 8, color = diseq_color,
-		)
+				_ppl.arrow(
+					x.n + i * v[0],
+					y.n + i * v[1],
+					(j-i) * v[0],
+					(j-i) * v[1],
+					alpha = 0.25,
+					**kw,
+				)
+				_ppl.text(
+					x.n, y.n + 5.5*y.s,
+					f'Equil. p-value = {pv:.0e}',
+					ha = 'center', va = 'bottom', size = 8, color = diseq_color,
+				)
+			_ppl.text(
+				xp.n + 4*xp.s,
+				yp.n - 5 * yp.s,
+				f'T = {teq.n:.1f}±{t.s:.1f}°C',
+				ha = 'left', va = 'top', size = 8, color = diseq_color,
+			)
 
-	# 	_ppl.text(
-	# 		0.5, 0.02,
-	# 		"""
-	# Inputs: $Δ_{47}$ and $Δ_{48}$ measurements, with arbitrary errors (covariance matrix).
-	# Outputs: equilibrium p-values and T estimates with T covariance matrix fully accounting for $Δ_{47}$ and $Δ_{48}$
-	# measurement uncertainties, $Δ_{47}$ and $Δ_{48}$ calibration uncertainties, and the disequilibrium slope uncertainty.""",
-	# 		size = 6.5, va = 'bottom', ha = 'center', transform = _ppl.gca().transAxes,
-	# 	)
+			m = 0.5
+			_ppl.text(
+				(m * x.n + (1-m) * xp.n),
+				(m * y.n + (1-m) * yp.n),
+				'disequilibrium slope\n(with uncertainty)\n',
+				ha = 'left', va = 'bottom', size = 8, color = diseq_color,
+			)
+
+		else:
+			v = _np.array([
+				xeq.n - x.n,
+				xeq.n - y.n,
+			])
+
+			_ppl.text(
+				x.n, y.n + 5.5*y.s,
+				f'Equil. p-value = {pv:.2f}',
+				ha = 'center', va = 'bottom', size = 8, color = eq_color,
+			)
+			_ppl.text(
+				xeq.n + 4*xeq.s,
+				yeq.n - 5 * yeq.s,
+				f'T = {teq.n:.1f}±{t.s:.1f}°C',
+				ha = 'left', va = 'top', size = 8, color = eq_color,
+			)
+
+
+	_ppl.text(
+		0.5, 0.07,
+		"""
+Inputs: $Δ_{47}$ and $Δ_{48}$ measurements, with arbitrary errors (covariance matrix).
+Outputs: equilibrium p-values and T estimates with T covariance matrix fully accounting for $Δ_{47}$ and $Δ_{48}$
+measurement uncertainties, $Δ_{47}$ and $Δ_{48}$ calibration uncertainties, and the disequilibrium slope uncertainty.""",
+		size = 6.5, va = 'bottom', ha = 'center', transform = _ppl.gca().transAxes,
+	)
 
 	_ppl.text(
 		1, 1.01, 'M. Daëron 2024-10',
@@ -171,12 +167,9 @@ for k, funD47eq in enumerate((
 		D48 = Y,
 	)
 
-	try:
-		data['pvalue_eq'] = p
-		data['Teq'] = Teq
-	# 	data['Tkp'] = Tp
+	data['pvalue_eq'] = p
+	data['Teq'] = Teq
+	data['Tkp'] = Tp
 
-	# 	print(data_string(data))
-		save_data_to_file(data, f'output_{k}_{funTeqname}.csv')
-	except:
-		pass
+# 	print(data_string(data))
+	save_data_to_file(data, f'output_{k}_{funD47eqname}.csv')

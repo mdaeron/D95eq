@@ -150,19 +150,16 @@ _ppl.axis([0.15, 0.78, None, None])
 _ppl.savefig('example_plot.pdf')
 _ppl.savefig('example_plot.png', dpi = 150)
 
-try:
-	data['pvalue_eq'] = p
-	data['Teq'] = Teq
-	data['Tkp'] = Tp
+data['pvalue_eq'] = pD47
+data['Teq'] = E.T_as_function_of_D47(D47eq)
+data['Tkp'] = E.T_as_function_of_D47(D47p)
 
-	save_data_to_file(data, 'output.csv')
+save_data_to_file(data, 'output.csv')
 
-	save_Teq_report(
-		X,
-		Y,
-		Teq,
-		p,
-		'Teq-report.csv',
-	)
-except:
-	pass
+save_Teq_report(
+	X,
+	Y,
+	data['Teq'],
+	pD47,
+	'Teq-report.csv',
+)
