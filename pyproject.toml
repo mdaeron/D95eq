@@ -33,5 +33,6 @@ dev = [
 
 [tool.pytest.ini_options]
 filterwarnings = [
-	"ignore::pytest.PytestCollectionWarning"
+	"ignore::pytest.PytestCollectionWarning",
+	"ignore::FutureWarning",
 ]

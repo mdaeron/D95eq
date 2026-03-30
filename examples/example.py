@@ -1,6 +1,8 @@
 from correldata import read_data_from_file, save_data_to_file
 import numpy as _np
 import uncertainties as _uc
+from warnings import filterwarnings
+filterwarnings('ignore', category = FutureWarning)
 
 from matplotlib import pyplot as _ppl
 from D95thermo import *

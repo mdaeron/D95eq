@@ -34,8 +34,6 @@ from scipy.optimize import fsolve as _fsolve
 from numpy.typing import ArrayLike
 from typing_extensions import Annotated as _Annotated
 from typer import rich_utils as _rich_utils
-# from scipy.interpolate import interp1d as _interp1d
-
 
 #### Utility variables and functions ####
 
@@ -1010,8 +1008,6 @@ class Engine():
 		D48: _cd.uarray,
 		kinetic_slope: (float | _uc.UFloat),
 		ignore_calib_uncertainties: bool = False,
-		estimate_pdf: bool = False,
-		N_qmc: int = 1000,
 	):
 
 		D47 = _cd.uarray(D47)
@@ -1020,27 +1016,6 @@ class Engine():
 		N47c = self.D47_coefs.size
 		N48c = self.D48_coefs.size
 		T = D47 * 0
-
-		if estimate_pdf:
-
-			from scipy.stats import qmc
-			from tqdm import trange
-
-			input_params = _cd.uarray([
-				*D47,
-				*D48,
-				kinetic_slope,
-				*self.D47_coefs,
-				*self.D48_coefs,
-			])
-
-			qmc_dist = qmc.MultivariateNormalQMC(
-				mean = input_params.n*0,
-				cov = input_params.cor,
-			)
-			qmc_draws = input_params.n + qmc_dist.random(N_qmc) * input_params.s
-
-			T_qmc = _cd.uarray(_np.zeros((N_qmc, N)))
 
 		for i in range(N):
 
@@ -1074,41 +1049,41 @@ class Engine():
 				*self.D48_coefs,
 			)
 
-			if estimate_pdf:
-				for k in trange(N_qmc):
-					T_qmc[k,i] = wg(
-						qmc_draws[k,i],
-						qmc_draws[k,N+i],
-						qmc_draws[k,N*2],
-						*qmc_draws[k,-N47c-N48c:-N48c],
-						*qmc_draws[k,-N48c:],
-					)
-
-		if estimate_pdf:
-			return T, T_qmc
 		return T
 
 	def Teq_pdf( # TODO: account for calib uncertainties
 		self,
 		D47: _uc.ufloat,
-		Ti: (ArrayLike | None) = None,
-		Ni: int = 201,
-		default_Ti_sigmas: float = 4.0,
+		Tmin: (float | None)             = None,
+		Tmax: (float | None)             = None,
+		Tinc: (float | None)             = None,
+		default_Tinc: float              = 0.2,
+		default_D47_sigmas: float        = 4.0,
 		ignore_calib_uncertainties: bool = False,
+		run_qmc: bool                    = False,
+		N_qmc: int                       = 1024,
 	):
 
+		if Tmin is None:
+			Tmin = _np.floor(self.T_as_function_of_D47(
+				D47.n + default_D47_sigmas * D47.s,
+				ignore_calib_uncertainties = ignore_calib_uncertainties,
+			).n)
 
-		if Ti is None: # compute suitable Ti values
+		if Tmax is None:
+			Tmax = _np.ceil(self.T_as_function_of_D47(
+				D47.n - default_D47_sigmas * D47.s,
+				ignore_calib_uncertainties = ignore_calib_uncertainties,
+			).n)
 
-			# build interpolating function
-			_f = uarray_compatible_interp(self.interp.D47.n, self.interp.T)
+		if Tinc is None:
+			Tinc = default_Tinc
 
-			# compute interpolated Ti values
-			Ti = _np.linspace(
-				_f(D47.n + default_Ti_sigmas * D47.s),
-				_f(D47.n - default_Ti_sigmas * D47.s),
-				Ni,
-			)
+		assert Tmin < Tmax, "Tmax must be strictly greater than Tmin"
+		assert Tinc > 0, "Tinc must be strictly greater than zero"
+
+		# compute interpolated Ti values
+		Ti = _np.arange(Tmin, Tmax+Tinc, Tinc)
 
 		pdf = transform_pdf_monotonic(
 			f_inv   = lambda T: D4x_calib_function(
@@ -1127,7 +1102,48 @@ class Engine():
 			sigma_x = D47.s,
 			yi      = Ti,
 		)
-		# print(pdf.sum(), f"ignore_calib_uncertainties = {ignore_calib_uncertainties}")
+
+		if run_qmc:
+
+			from scipy.stats import qmc
+			from tqdm.rich import tqdm
+
+
+			#parameters to jiggle
+			input_params = _cd.uarray([D47, *self.D47_coefs])
+
+			# QMC sampler for the correlation matrix of these parameters
+			qmc_dist = qmc.MultivariateNormalQMC(
+				mean = input_params.n*0,
+				cov = input_params.cor,
+			)
+
+			# QMC samples
+			qmc_draws = input_params.n + qmc_dist.random(N_qmc) * input_params.s
+
+			# initialize T_qmc
+			Tqmc = _cd.uarray(_np.zeros((N_qmc,)))
+
+			# if ignore_calib_uncertainties:
+			# 	uarray_compatible_interp(self.interp.D47.n, self.interp.T)
+			# else:
+			# 	_T_as_function_of_D47 = self.interp.Teq_as_function_of_D47u(D47)
+			# 	return _cd.uarray(self.interp.Teq_as_function_of_D47u(D47))
+
+			for k in tqdm(range(N_qmc)):
+				# jiggled D47 and D47coefs
+				_D47 = qmc_draws[k,0]
+				if ignore_calib_uncertainties:
+					_coefs = self.D47_coefs
+				else:
+					_coefs = _cd.uarray(_uc.correlated_values(qmc_draws[k,1:], self.D47_coefs.covar))
+
+				# jiggled D47
+				_D47i = D4x_calib_function(self.interp.T, _coefs)
+				_f = uarray_compatible_interp(_D47i.n, self.interp.T)
+				Tqmc[k] = _f(_D47)
+
+			return Ti, pdf, Tqmc
 
 		return Ti, pdf
 
@@ -1137,8 +1153,6 @@ class Engine():
 		D47: _cd.uarray,
 		D48: _cd.uarray,
 		ignore_calib_uncertainties: bool = False,
-		estimate_pdf: bool = False,
-		N_qmc: int = 1000,
 	):
 		"""
 		Returns a `correldata.uarray` of T values, each of which is the closest (in the OGLS sense)
@@ -1160,27 +1174,6 @@ class Engine():
 
 		_np.set_printoptions(threshold = _np.inf)
 		_np.set_printoptions(linewidth = _np.inf)
-
-
-		if estimate_pdf:
-
-			from scipy.stats import qmc
-			from tqdm import trange
-
-			input_params = _cd.uarray([
-				*D47,
-				*D48,
-				*self.D47_coefs,
-				*self.D48_coefs,
-			])
-
-			qmc_dist = qmc.MultivariateNormalQMC(
-				mean = input_params.n*0,
-				cov = input_params.cor,
-			)
-			qmc_draws = input_params.n + qmc_dist.random(N_qmc) * input_params.s
-
-			T_qmc = _cd.uarray(_np.zeros((N_qmc, N)))
 
 		for i in range(N):
 			def fun(*args): # args = (D47, D48, *D47_calib_coefs, *D48_calib_coefs)
@@ -1223,15 +1216,6 @@ class Engine():
 			wrapped_fun = _uc.wrap(fun)
 			Teq[i] = wrapped_fun(D47[i], D48[i], *self.D47_coefs, *self.D48_coefs)
 
-			if estimate_pdf:
-				for k in trange(N_qmc):
-					T_qmc[k,i] = fun(
-						qmc_draws[k,i],
-						qmc_draws[k,N+i],
-						*qmc_draws[k,-N47-N48:-N48],
-						*qmc_draws[k,-N48:],
-					)
-
 		R = _cd.uarray(_np.concatenate((
 			D47 - D4x_calib_function(Teq.n, self.D47_coefs, ignore_calib_uncertainties = ignore_calib_uncertainties),
 			D48 - D4x_calib_function(Teq.n, self.D48_coefs, ignore_calib_uncertainties = ignore_calib_uncertainties),
@@ -1243,8 +1227,6 @@ class Engine():
 			z2 = r.m
 			p[k] = 1-_chi2.cdf(z2, 1)
 
-		if estimate_pdf:
-			return Teq, p, T_qmc
 		return Teq, p
 
 
@@ -1411,8 +1393,6 @@ class Engine():
 		D48: _cd.uarray,
 		kinetic_slope: (float | _uc.UFloat),
 		ignore_calib_uncertainties: bool = False,
-		estimate_pdf: bool = False,
-		N_qmc: int = 1000,
 	):
 
 		D47 = _cd.uarray(D47)
@@ -1421,27 +1401,6 @@ class Engine():
 		N47c = self.D47_coefs.size
 		N48c = self.D48_coefs.size
 		T = D47 * 0
-
-		if estimate_pdf:
-
-			from scipy.stats import qmc
-			from tqdm import trange
-
-			input_params = _cd.uarray([
-				*D47,
-				*D48,
-				kinetic_slope,
-				*self.D47_coefs,
-				*self.D48_coefs,
-			])
-
-			qmc_dist = qmc.MultivariateNormalQMC(
-				mean = input_params.n*0,
-				cov = input_params.cor,
-			)
-			qmc_draws = input_params.n + qmc_dist.random(N_qmc) * input_params.s
-
-			T_qmc = _cd.uarray(_np.zeros((N_qmc, N)))
 
 		for i in range(N):
 
@@ -1475,18 +1434,6 @@ class Engine():
 				*self.D48_coefs,
 			)
 
-			if estimate_pdf:
-				for k in trange(N_qmc):
-					T_qmc[k,i] = wg(
-						qmc_draws[k,i],
-						qmc_draws[k,N+i],
-						qmc_draws[k,N*2],
-						*qmc_draws[k,-N47c-N48c:-N48c],
-						*qmc_draws[k,-N48c:],
-					)
-
-		if estimate_pdf:
-			return T, T_qmc
 		return T
 
 

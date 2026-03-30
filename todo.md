@@ -1,2 +1,2 @@
-* Add QMC to `Teq_pdf()` and remove it from elsewhere
+* Implement `projected_D47eq()`
 * Add `Teq_pdf()` to `D47calib`
