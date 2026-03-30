@@ -6,7 +6,7 @@ version:
 	uv run update-version.py
 
 examples:
-	cd examples; uv run example.py; # uv run large_example.py
+	cd examples; uv run example.py; uv run large_example.py
 
 qmc:
 	cd examples; uv run example_qmc.py

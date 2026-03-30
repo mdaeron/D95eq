@@ -691,6 +691,42 @@ class Engine():
 
 		return data, plot_elements
 
+	def _compute_p_and_D48eq_from_D47eq(
+		self,
+		D47,
+		D48,
+		D47eq,
+		ignore_calib_uncertainties = False,
+	):
+		"""
+		Used by the various `nearest_D47eq()` methods below.
+		"""
+		N = D47.size
+
+		# Compute fit residuals for p values
+		if ignore_calib_uncertainties:
+			R = _cd.uarray(_np.concatenate((
+				D47 - self.D47_ufloat_as_function_of_D47_float(D47eq.n).n,
+				D48 - self.D48_ufloat_as_function_of_D47_float(D47eq.n).n,
+			)))
+		else:
+			R = _cd.uarray(_np.concatenate((
+				D47 - self.D47_ufloat_as_function_of_D47_float(D47eq.n),
+				D48 - self.D48_ufloat_as_function_of_D47_float(D47eq.n),
+			)))
+
+		# Compute p values
+		p = _np.zeros((N,))
+		for k in range(N):
+			r = R[k::N]
+			z2 = r.m
+			p[k] = 1-_chi2.cdf(z2, 1)
+
+		# Compute D48eq
+		D48eq = self.D48_ufloat_as_function_of_D47_float(D47eq)
+
+		return p, D48eq
+
 	def nearest_D47eq(
 		self,
 		D47: _cd.uarray,
@@ -716,8 +752,8 @@ class Engine():
 		N48 = self.D48_coefs.size
 		D47eq = D47 * 0
 
-		_np.set_printoptions(threshold = _np.inf)
-		_np.set_printoptions(linewidth = _np.inf)
+		# _np.set_printoptions(threshold = _np.inf)
+		# _np.set_printoptions(linewidth = _np.inf)
 
 		for i in range(N):
 			def fun(*args): # args = (D47, D48, *D47_calib_coefs, *D48_calib_coefs)
@@ -762,10 +798,15 @@ class Engine():
 					invS = _np.linalg.inv(R.covar)
 					L = _cholesky(invS)
 
-
 					return L @ R.n
 
-				minresult = _lmfit.minimize(cost_fun, params, method = 'least_squares', scale_covar = False, jac = '3-point')
+				minresult = _lmfit.minimize(
+					cost_fun,
+					params,
+					method = 'least_squares',
+					scale_covar = False,
+					jac = '3-point',
+				)
 				# slower but yields very similar results:
 				# minresult = _lmfit.minimize(cost_fun, params, method = 'powell', scale_covar = False)
 
@@ -774,39 +815,106 @@ class Engine():
 			wrapped_fun = _uc.wrap(fun)
 			D47eq[i] = wrapped_fun(D47[i], D48[i], *self.D47_coefs, *self.D48_coefs)
 
-		# D47i = D4x_calib_function(
-		# 	self.interp.T,
-		# 	self.D47_coefs,
-		# 	return_without_uncertainties = False,
-		# 	ignore_calib_uncertainties = ignore_calib_uncertainties,
-		# )
-		D47i = self.interp.D47_no_calib_errors if ignore_calib_uncertainties else self.interp.D47
-
-		# D48i = D4x_calib_function(
-		# 	self.interp.T,
-		# 	self.D48_coefs,
-		# 	return_without_uncertainties = False,
-		# 	ignore_calib_uncertainties = ignore_calib_uncertainties,
-		# )
-		D48i = self.interp.D48_no_calib_errors if ignore_calib_uncertainties else self.interp.D48
-
-		D47_interp = uarray_compatible_interp(D47i.n, D47i)
-		D48_interp = uarray_compatible_interp(D47i.n, D48i)
-
-		R = _cd.uarray(_np.concatenate((
-			D47 - D47_interp(D47eq.n),
-			D48 - D48_interp(D47eq.n),
-		)))
-
-		p = _np.zeros((N,))
-		for k in range(N):
-			r = R[k::N]
-			z2 = r.m
-			p[k] = 1-_chi2.cdf(z2, 1)
-
-		D48eq = D48_interp(D47eq)
+		p, D48eq = self._compute_p_and_D48eq_from_D47eq(D47, D48, D47eq, ignore_calib_uncertainties = ignore_calib_uncertainties)
 
 		return D47eq, D48eq, p
+
+	def joint_nearest_D47eq(
+		self,
+		D47: _cd.uarray,
+		D48: _cd.uarray,
+		ignore_calib_uncertainties: bool = False,
+	):
+		"""
+		Returns a `correldata.uarray` of equilibrium Δ<sub>47</sub> values which are *jointly* closest (in the OGLS sense)
+		to a sequence of (Δ<sub>47</sub>, Δ<sub>48</sub>) pairs. Also returns an array of
+		corresponding p-values taking into account errors in Δ<sub>47</sub> and Δ<sub>48</sub>
+		(and any covariance between the two) as well as errors in the Δ<sub>47</sub> and
+		Δ<sub>48</sub> calibrations.
+
+		Caution: the use of this function is **not generally recommended** except for
+		experimentation purposes, because it is conceptually and numerically risky to *jointly*
+		fit the sequence of `D47eq` values, as opposed to fitting each of them individually,
+		as done by the recommended function `nearest_D47eq()`.
+
+		This is both the slowest and most complete version of this calculation.
+		It is expected to yield an `uarray` with reasonably accurate covariance between the
+		`D47eq` values, but also between `D47eq` and all other variables.
+
+		A faster but incomplete and potentially less accurate version of this calculation is
+		provided by `lazy_joint_nearest_D47eq()`.
+		"""
+
+		N = D47.size
+		N47 = self.D47_coefs.size
+		N48 = self.D48_coefs.size
+
+		def fun(j, *args):
+
+			args = _np.array(args)
+			D47_n = args[:N]
+			D48_n = args[N:2*N]
+			D47_calib_coefs_n = args[-N48-N47:-N48]
+			D48_calib_coefs_n = args[-N48:]
+
+			params = _lmfit.Parameters()
+			for k in range(N):
+				params.add(f'D47eq{k}', value = D47_n[k])
+
+			D47_u = _cd.uarray(_uc.correlated_values(D47_n, D47.covar))
+			D48_u = _cd.uarray(_uc.correlated_values(D48_n, D48.covar))
+			D47_calib_coefs_u = _cd.uarray(_uc.correlated_values(D47_calib_coefs_n, self.D47_coefs.covar))
+			D48_calib_coefs_u = _cd.uarray(_uc.correlated_values(D48_calib_coefs_n, self.D48_coefs.covar))
+
+			D47i = D4x_calib_function(
+				self.interp.T,
+				D47_calib_coefs_u,
+				return_without_uncertainties = False,
+				ignore_calib_uncertainties = ignore_calib_uncertainties,
+			)
+
+			D48i = D4x_calib_function(
+				self.interp.T,
+				D48_calib_coefs_u,
+				return_without_uncertainties = False,
+				ignore_calib_uncertainties = ignore_calib_uncertainties,
+			)
+
+			D47_interp = uarray_compatible_interp(D47i.n, D47i)
+			D48_interp = uarray_compatible_interp(D47i.n, D48i)
+
+			def cost_fun(p):
+				_D47eq = _np.array([p[f'D47eq{k}'] for k in range(N)])
+				R = _cd.uarray(_np.concatenate((
+					D47_u - D47_interp(_D47eq),
+					D48_u - D48_interp(_D47eq),
+				)))
+
+				invS = _np.linalg.inv(R.covar)
+				L = _cholesky(invS)
+
+				# print(((L @ R.n)**2).sum())
+				return L @ R.n
+
+			minresult = _lmfit.minimize(
+				cost_fun,
+				params,
+				method = 'least_squares',
+				scale_covar = False,
+				jac = '3-point',
+			)
+			# slower but yields very similar results:
+			# minresult = _lmfit.minimize(cost_fun, params, method = 'powell', scale_covar = False)
+
+			return minresult.params[f'D47eq{j}'].value
+
+		wrapped_fun = _uc.wrap(fun)
+
+		D47eq = _cd.uarray([wrapped_fun(j, *D47, *D48, *self.D47_coefs, *self.D48_coefs) for j in range(N)])
+		p, D48eq = self._compute_p_and_D48eq_from_D47eq(D47, D48, D47eq, ignore_calib_uncertainties = ignore_calib_uncertainties)
+
+		return D47eq, D48eq, p
+
 
 	def Teq_pdf( # TODO: account for calib uncertainties
 		self,

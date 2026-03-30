@@ -13,23 +13,23 @@ p_cutoff = 0.05
 eq_color = (0,.5,.2)
 diseq_color = (1, 0, .4)
 
-N = 12
+N = 8
 
 X = _np.linspace(0.2, 0.65, N)
 Y = _np.linspace(0.15, 0.25, N)
 X = uarray(_uc.correlated_values(X, _np.diag([1.*.005**2]*N) + _np.ones((N,N))*0.*.005**2))
 Y = uarray(_uc.correlated_values(Y, _np.diag([.015**2]*N)))
 
-for k, funTeq in enumerate((
-	E.nearest_Teq,
-	E.joint_nearest_Teq,
-	E.lazy_joint_nearest_Teq,
+for k, funD47eq in enumerate((
+	E.nearest_D47eq,
+	E.joint_nearest_D47eq,
+	# E.lazy_joint_nearest_Teq,
 )):
 
-	funTeqname = funTeq.__name__
-	print(f'Start {funTeqname}()')
+	funD47eqname = funD47eq.__name__
+	print(f'Start {funD47eqname}()')
 	t1 = time.time()
-	Teq, p = funTeq(X, Y)
+	D47eq, D48eq, p = funD47eq(X, Y)
 	t2 = time.time()
 	Tp = E.projected_Teq(X, Y, slope)
 
@@ -40,7 +40,7 @@ for k, funTeq in enumerate((
 
 	conf_ellipse(X, Y, ec = 'k')
 
-	E.T_ellipse(Teq[p >= p_cutoff], ec = eq_color, fc = (*eq_color, 0.2))
+	conf_ellipse(D47eq[p >= p_cutoff], D48eq[p >= p_cutoff], ec = eq_color, fc = (*eq_color, 0.2))
 	E.T_ellipse(Tp[p < p_cutoff], ec = diseq_color, fc = (*diseq_color, 0.2))
 
 	for x, y, t in zip(X[p < p_cutoff], Y[p < p_cutoff], Tp[p < p_cutoff]):
@@ -78,7 +78,15 @@ for k, funTeq in enumerate((
 				**kw,
 			)
 
-	for x, y, t, pv in zip(X[p >= p_cutoff], Y[p >= p_cutoff], Teq[p >= p_cutoff], p[p >= p_cutoff]):
+	t = _uc.ufloat(0., 0.1)
+
+	for x, y, xeq, yeq, pv in zip(
+		X[p >= p_cutoff],
+		Y[p >= p_cutoff],
+		D47eq[p >= p_cutoff],
+		D48eq[p >= p_cutoff],
+		p[p >= p_cutoff],
+	):
 		_ppl.text(
 			x.n, y.n + 5*y.s,
 			'($Δ_{47}, Δ_{48}$)\nobservation',
@@ -90,12 +98,19 @@ for k, funTeq in enumerate((
 			ha = 'center', va = 'bottom', size = 8, color = eq_color,
 		)
 		_ppl.text(
-			E.D47_calib_function(t).n + 4*E.D47_calib_function(t).s, E.D48_calib_function(t).n - 5 * E.D48_calib_function(t).s,
+			xeq.n + 4*xeq.s,
+			yeq.n - 5 * yeq.s,
 			f'T = {t.n:.1f}±{t.s:.1f}°C',
 			ha = 'left', va = 'top', size = 8, color = eq_color,
 		)
 
-	for x, y, t, pv in zip(X[p < p_cutoff], Y[p < p_cutoff], Tp[p < p_cutoff], p[p < p_cutoff]):
+	for x, y, xeq, yeq, pv in zip(
+		X[p < p_cutoff],
+		Y[p < p_cutoff],
+		D47eq[p >= p_cutoff],
+		D48eq[p >= p_cutoff],
+		p[p < p_cutoff],
+	):
 		_ppl.text(
 			x.n, y.n + 5*y.s,
 			'($Δ_{47}, Δ_{48}$)\nobservation',
@@ -138,7 +153,7 @@ for k, funTeq in enumerate((
 	)
 
 	_ppl.text(
-		.99, .02, f'computed using {funTeqname}() in {t2-t1:.2f} s',
+		.99, .02, f'computed using {funD47eqname}() in {t2-t1:.2f} s',
 		transform = _ppl.gca().transAxes,
 		size = 8,
 		ha = 'right',
@@ -147,16 +162,19 @@ for k, funTeq in enumerate((
 
 	_ppl.axis('equal')
 	_ppl.axis([0.15, 0.78, None, None])
-	_ppl.savefig(f'large_example_plot_{k}_{funTeqname}.pdf')
+	_ppl.savefig(f'large_example_plot_{k}_{funD47eqname}.pdf')
 
 	data = dict(
 		D47 = X,
 		D48 = Y,
 	)
 
-	data['pvalue_eq'] = p
-	data['Teq'] = Teq
-# 	data['Tkp'] = Tp
+	try:
+		data['pvalue_eq'] = p
+		data['Teq'] = Teq
+	# 	data['Tkp'] = Tp
 
-# 	print(data_string(data))
-	save_data_to_file(data, f'output_{k}_{funTeqname}.csv')
+	# 	print(data_string(data))
+		save_data_to_file(data, f'output_{k}_{funTeqname}.csv')
+	except:
+		pass

@@ -40,12 +40,6 @@ E.plot_D95_equilibrium()
 conf_ellipse(X, Y, ec = 'k')
 conf_ellipse(D47eq, D48eq, ec = 'm', lw = 2)
 
-for _D, _p, _T in zip(D47eq, pD47, Teq):
-	_ppl.axvline(_D.n, color = 'r')
-	_ppl.axvline(E.D47_calib_function(_T.n).n, color = 'b')
-	_ppl.text(_D.n, 0.080, f"{_p:.2e}", color = 'r')
-
-
 E.T_ellipse(Teq[p >= p_cutoff], ec = eq_color, fc = (*eq_color, 0.2))
 E.T_ellipse(Tp[p < p_cutoff], ec = diseq_color, fc = (*diseq_color, 0.2))
 
