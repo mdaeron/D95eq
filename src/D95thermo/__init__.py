@@ -915,6 +915,155 @@ class Engine():
 
 		return D47eq, D48eq, p
 
+	def lazy_joint_nearest_D47eq(
+		self,
+		D47: _cd.uarray,
+		D48: _cd.uarray,
+		ignore_calib_uncertainties: bool = False,
+	):
+		"""
+		Returns a `correldata.uarray` of equilibrium Δ<sub>47</sub> values which are *jointly* closest (in the OGLS sense)
+		to a sequence of (Δ<sub>47</sub>, Δ<sub>48</sub>) pairs. Also returns an array of
+		corresponding p-values taking into account errors in Δ<sub>47</sub> and Δ<sub>48</sub>
+		(and any covariance between the two) as well as errors in the Δ<sub>47</sub> and
+		Δ<sub>48</sub> calibrations.
+
+		Caution: the use of this function is **not generally recommended** except for
+		experimentation purposes, because it is conceptually and numerically risky to *jointly*
+		fit the sequence of `Teq` values, as opposed to fitting each of them individually,
+		as done by the recommended function `nearest_D47eq()`.
+
+		This is a faster but incomplete version of this calculation. It is expected to yield an
+		`uarray` with roughly accurate covariance between the `Teq` values, but without computing
+		the covariance with any other variables.
+
+		A slower but complete and more accurate version of this calculation is provided by
+		`joint_nearest_D47eq()`.
+		"""
+
+		N = D47.size
+
+		params = _lmfit.Parameters()
+		for k in range(N):
+			params.add(f'D47eq{k}', value = D47[k].n)
+
+		def cost_fun(p, ignore_calib_uncertainties = ignore_calib_uncertainties):
+			_D47eq = _np.array([p[f'D47eq{k}'] for k in range(N)])
+
+			if ignore_calib_uncertainties:
+				R = _cd.uarray(_np.concatenate((
+					D47 - self.D47_ufloat_as_function_of_D47_float(_D47eq).n,
+					D48 - self.D48_ufloat_as_function_of_D47_float(_D47eq).n,
+				)))
+			else:
+				R = _cd.uarray(_np.concatenate((
+					D47 - self.D47_ufloat_as_function_of_D47_float(_D47eq),
+					D48 - self.D48_ufloat_as_function_of_D47_float(_D47eq),
+				)))
+
+			invS = _np.linalg.inv(R.covar)
+			L = _cholesky(invS)
+
+			# print(((L @ R.n)**2).sum())
+			return L @ R.n
+
+		minresult = _lmfit.minimize(
+			cost_fun,
+			params,
+			method = 'least_squares',
+			scale_covar = False,
+			jac = '3-point',
+		)
+
+		D47eq = _cd.uarray([minresult.uvars[f'D47eq{k}'] for k in range(N)])
+
+		p, D48eq = self._compute_p_and_D48eq_from_D47eq(D47, D48, D47eq, ignore_calib_uncertainties = ignore_calib_uncertainties)
+
+		return D47eq, D48eq, p
+
+	def projected_Teq(
+		self,
+		D47: _cd.uarray,
+		D48: _cd.uarray,
+		kinetic_slope: (float | _uc.UFloat),
+		ignore_calib_uncertainties: bool = False,
+		estimate_pdf: bool = False,
+		N_qmc: int = 1000,
+	):
+
+		D47 = _cd.uarray(D47)
+		D48 = _cd.uarray(D48)
+		N = D47.size
+		N47c = self.D47_coefs.size
+		N48c = self.D48_coefs.size
+		T = D47 * 0
+
+		if estimate_pdf:
+
+			from scipy.stats import qmc
+			from tqdm import trange
+
+			input_params = _cd.uarray([
+				*D47,
+				*D48,
+				kinetic_slope,
+				*self.D47_coefs,
+				*self.D48_coefs,
+			])
+
+			qmc_dist = qmc.MultivariateNormalQMC(
+				mean = input_params.n*0,
+				cov = input_params.cor,
+			)
+			qmc_draws = input_params.n + qmc_dist.random(N_qmc) * input_params.s
+
+			T_qmc = _cd.uarray(_np.zeros((N_qmc, N)))
+
+		for i in range(N):
+
+			# function to solve
+			def fun(t, *args): # args = (D47, D48, kinetic_slope, *self.D47_coefs, *self.D48_coefs)
+				return (
+					args[1]
+					- _np.sum([
+						c / (t[0] + 273.15)**k
+						for k,c in enumerate(args[-N48c:])
+					])
+					- args[2] * (
+						args[0]
+						- _np.sum([
+							c / (t[0] + 273.15)**k
+							for k,c in enumerate(args[-N47c-N48c:-N48c])
+						])
+					)
+				)
+
+			def g(*args):
+				return _fsolve(fun, [100.], args = args)[0]
+
+			wg = _uc.wrap(g)
+
+			T[i] = wg(
+				D47[i],
+				D48[i],
+				kinetic_slope,
+				*self.D47_coefs,
+				*self.D48_coefs,
+			)
+
+			if estimate_pdf:
+				for k in trange(N_qmc):
+					T_qmc[k,i] = wg(
+						qmc_draws[k,i],
+						qmc_draws[k,N+i],
+						qmc_draws[k,N*2],
+						*qmc_draws[k,-N47c-N48c:-N48c],
+						*qmc_draws[k,-N48c:],
+					)
+
+		if estimate_pdf:
+			return T, T_qmc
+		return T
 
 	def Teq_pdf( # TODO: account for calib uncertainties
 		self,

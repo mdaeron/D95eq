@@ -23,7 +23,7 @@ Y = uarray(_uc.correlated_values(Y, _np.diag([.015**2]*N)))
 for k, funD47eq in enumerate((
 	E.nearest_D47eq,
 	E.joint_nearest_D47eq,
-	# E.lazy_joint_nearest_Teq,
+	E.lazy_joint_nearest_D47eq,
 )):
 
 	funD47eqname = funD47eq.__name__
@@ -134,14 +134,14 @@ for k, funD47eq in enumerate((
 			ha = 'left', va = 'bottom', size = 8, color = diseq_color,
 		)
 
-		_ppl.text(
-			0.5, 0.02,
-			"""
-	Inputs: $Δ_{47}$ and $Δ_{48}$ measurements, with arbitrary errors (covariance matrix).
-	Outputs: equilibrium p-values and T estimates with T covariance matrix fully accounting for $Δ_{47}$ and $Δ_{48}$
-	measurement uncertainties, $Δ_{47}$ and $Δ_{48}$ calibration uncertainties, and the disequilibrium slope uncertainty.""",
-			size = 6.5, va = 'bottom', ha = 'center', transform = _ppl.gca().transAxes,
-		)
+	# 	_ppl.text(
+	# 		0.5, 0.02,
+	# 		"""
+	# Inputs: $Δ_{47}$ and $Δ_{48}$ measurements, with arbitrary errors (covariance matrix).
+	# Outputs: equilibrium p-values and T estimates with T covariance matrix fully accounting for $Δ_{47}$ and $Δ_{48}$
+	# measurement uncertainties, $Δ_{47}$ and $Δ_{48}$ calibration uncertainties, and the disequilibrium slope uncertainty.""",
+	# 		size = 6.5, va = 'bottom', ha = 'center', transform = _ppl.gca().transAxes,
+	# 	)
 
 	_ppl.text(
 		1, 1.01, 'M. Daëron 2024-10',
