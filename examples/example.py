@@ -7,12 +7,34 @@ filterwarnings('ignore', category = FutureWarning)
 from matplotlib import pyplot as _ppl
 from D95thermo import *
 
+from matplotlib import rcParams
+
+rcParams['font.family'] = 'sans-serif'
+rcParams['font.sans-serif'] = 'Helvetica'
+rcParams['font.size'] = 10
+rcParams['mathtext.fontset'] = 'custom'
+rcParams['mathtext.rm'] = 'sans'
+rcParams['mathtext.bf'] = 'sans:bold'
+rcParams['mathtext.it'] = 'sans:italic'
+rcParams['mathtext.cal'] = 'sans:bold'
+rcParams['mathtext.default'] = 'rm'
+rcParams['xtick.major.size'] = 4
+rcParams['xtick.major.width'] = 1
+rcParams['ytick.major.size'] = 4
+rcParams['ytick.major.width'] = 1
+rcParams['axes.grid'] = False
+rcParams['axes.linewidth'] = 1
+rcParams['grid.linewidth'] = .75
+rcParams['grid.linestyle'] = '-'
+rcParams['grid.alpha'] = .15
+rcParams['savefig.dpi'] = 150
+
 E = Engine()
 
 slope = _uc.ufloat(-1, 0.1)
 p_cutoff = 0.05
-eq_color = (0,.5,.2)
-diseq_color = (1, 0, .4)
+eq_color = (0, 0.5, 0)
+diseq_color = (.8, 0, 0.4)
 
 data = read_data_from_file('example_data.csv')
 X = data['D47']
@@ -34,8 +56,19 @@ _ppl.savefig(f'pdfs-example.pdf')
 # Teq, p = E.nearest_Teq(X, Y)
 D47p, D48p = E.projected_D47eq(X, Y, slope)
 
-fig = _ppl.figure(figsize = (6.5,4.5))
-_ppl.title("“$Δ_{95}$ thermometry” ($47+48=95$)")
+fig = _ppl.figure(figsize = (5.5,3.5))
+_ppl.subplots_adjust(0.12, 0.14, 0.98, 0.92)
+ax = _ppl.subplot(111)
+ax.text(
+	0.5, 1.02,
+	"“Δ$_{\\mathbf{95}}$ thermometry” (95 = 47 + 48)",
+	transform = ax.transAxes,
+	color = ".5",
+	weight = 'bold',
+	ha = 'center',
+	va = 'bottom',
+	size = 12,
+)
 
 E.plot_D95_equilibrium()
 
@@ -96,8 +129,8 @@ for x, y, xeq, yeq, xp, yp, pv in zip(X, Y, D47eq, D48eq, D47p, D48p, pD47):
 		)
 		t = E.T_as_function_of_D47(xeq)
 		_ppl.text(
-			xeq.n + 4*xeq.s,
-			yeq.n - 5 * yeq.s,
+			x.n - 0.5*x.s,
+			y.n - 3.5*y.s,
 			f'T = {t.n:.1f}±{t.s:.1f}°C',
 			ha = 'left', va = 'top', size = 8, color = eq_color,
 		)
@@ -128,21 +161,12 @@ for x, y, xeq, yeq, xp, yp, pv in zip(X, Y, D47eq, D48eq, D47p, D48p, pD47):
 		)
 
 _ppl.text(
-	0.5, 0.02,
+	0.99, 0.02,
 	"""
-Inputs: $Δ_{47}$ and $Δ_{48}$ measurements, with arbitrary errors (covariance matrix).
-Outputs: equilibrium p-values and T estimates with T covariance matrix fully accounting for $Δ_{47}$ and $Δ_{48}$
-measurement uncertainties, $Δ_{47}$ and $Δ_{48}$ calibration uncertainties, and the disequilibrium slope uncertainty.""",
-	size = 6.5, va = 'bottom', ha = 'center', transform = _ppl.gca().transAxes,
-)
-
-_ppl.text(
-	1, 1.01, 'M. Daëron 2024-10',
-	transform = _ppl.gca().transAxes,
-	size = 6,
-	alpha = 0.25,
-	ha = 'right',
-	va = 'bottom',
+Inputs: $Δ_{47}$ and $Δ_{48}$ with arbitrary correlated errors.
+Outputs: equilibrium p-values and T estimates with errors/PDFs
+accounting for uncertainties in measurements, calibrations, and disequilibrium slopes.""",
+	size = 7, va = 'bottom', ha = 'right', transform = ax.transAxes,
 )
 
 _ppl.axis('equal')
