@@ -1301,8 +1301,7 @@ Reads data from an input file, computes p-value and T estimates, and print out t
 		'Tkp': 'z.2f',
 	}
 
-	out = _cd.data_string(
-		data,
+	out = data.str(
 		float_format = ffmt,
 		show_mixed_correl = show_mixed_correl,
 		exclude_fields = ['correl_kslope'],
