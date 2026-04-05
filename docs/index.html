@@ -360,7 +360,7 @@ D95thermo    </h1>
 </span><span id="L-192"><a href="#L-192"><span class="linenos"> 192</span></a><span class="s1">	ETH-2-1100, 0.1225, 0.0070, 1100.0,  10., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1.</span>
 </span><span id="L-193"><a href="#L-193"><span class="linenos"> 193</span></a><span class="s1">	&#39;&#39;&#39;</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
 </span><span id="L-194"><a href="#L-194"><span class="linenos"> 194</span></a>
-</span><span id="L-195"><a href="#L-195"><span class="linenos"> 195</span></a>		<span class="n">data</span> <span class="o">=</span> <span class="n">_cd</span><span class="o">.</span><span class="n">read_data</span><span class="p">(</span><span class="n">datastr</span><span class="p">)</span>
+</span><span id="L-195"><a href="#L-195"><span class="linenos"> 195</span></a>		<span class="n">data</span> <span class="o">=</span> <span class="n">_cd</span><span class="o">.</span><span class="n">read_str</span><span class="p">(</span><span class="n">datastr</span><span class="p">)</span>
 </span><span id="L-196"><a href="#L-196"><span class="linenos"> 196</span></a>		<span class="n">T</span><span class="p">,</span> <span class="n">D48</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;T&#39;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;D48&#39;</span><span class="p">]</span>
 </span><span id="L-197"><a href="#L-197"><span class="linenos"> 197</span></a>
 </span><span id="L-198"><a href="#L-198"><span class="linenos"> 198</span></a>
@@ -536,7 +536,7 @@ D95thermo    </h1>
 </span><span id="L-368"><a href="#L-368"><span class="linenos"> 368</span></a><span class="sd">	&quot;&quot;&quot;</span>
 </span><span id="L-369"><a href="#L-369"><span class="linenos"> 369</span></a>
 </span><span id="L-370"><a href="#L-370"><span class="linenos"> 370</span></a>	<span class="c1"># D47_calib_coefs from OGLS23 (D47calib v1.3.1)</span>
-</span><span id="L-371"><a href="#L-371"><span class="linenos"> 371</span></a>	<span class="n">D47_calib_coefs</span> <span class="o">=</span> <span class="n">_cd</span><span class="o">.</span><span class="n">read_data</span><span class="p">(</span><span class="s1">&#39;&#39;&#39;</span>
+</span><span id="L-371"><a href="#L-371"><span class="linenos"> 371</span></a>	<span class="n">D47_calib_coefs</span> <span class="o">=</span> <span class="n">_cd</span><span class="o">.</span><span class="n">read_str</span><span class="p">(</span><span class="s1">&#39;&#39;&#39;</span>
 </span><span id="L-372"><a href="#L-372"><span class="linenos"> 372</span></a><span class="s1">              coefs,                     SE,        correl,</span>
 </span><span id="L-373"><a href="#L-373"><span class="linenos"> 373</span></a><span class="s1">0.17437754366432887,   4.911105567257293e-3,    1.        , -0.93797005,  0.8865771</span>
 </span><span id="L-374"><a href="#L-374"><span class="linenos"> 374</span></a><span class="s1"> -18.14215245127414,      5.632326472234856,   -0.93797005,  1.        , -0.98994249</span>
@@ -555,7 +555,7 @@ D95thermo    </h1>
 </span><span id="L-387"><a href="#L-387"><span class="linenos"> 387</span></a>	<span class="c1"># 	correl_format = &#39;z.12f&#39;,</span>
 </span><span id="L-388"><a href="#L-388"><span class="linenos"> 388</span></a>	<span class="c1"># ))</span>
 </span><span id="L-389"><a href="#L-389"><span class="linenos"> 389</span></a>
-</span><span id="L-390"><a href="#L-390"><span class="linenos"> 390</span></a>	<span class="n">D48_calib_coefs</span> <span class="o">=</span> <span class="n">_cd</span><span class="o">.</span><span class="n">read_data</span><span class="p">(</span><span class="s1">&#39;&#39;&#39;</span>
+</span><span id="L-390"><a href="#L-390"><span class="linenos"> 390</span></a>	<span class="n">D48_calib_coefs</span> <span class="o">=</span> <span class="n">_cd</span><span class="o">.</span><span class="n">read_str</span><span class="p">(</span><span class="s1">&#39;&#39;&#39;</span>
 </span><span id="L-391"><a href="#L-391"><span class="linenos"> 391</span></a><span class="s1">         coefs,         SE_coefs,    correl_coefs,                ,                ,                ,</span>
 </span><span id="L-392"><a href="#L-392"><span class="linenos"> 392</span></a><span class="s1">0.121349237888, 0.00390048540724,  1.000000000000, -0.664181963395,  0.664181963395, -0.664181963395,  0.664181963395</span>
 </span><span id="L-393"><a href="#L-393"><span class="linenos"> 393</span></a><span class="s1"> 6.22931985613,    0.32896761459, -0.664181963395,  1.000000000000, -1.000000000000,  1.000000000000, -1.000000000000</span>
@@ -1434,7 +1434,7 @@ D95thermo    </h1>
 </span><span id="L-1266"><a href="#L-1266"><span class="linenos">1266</span></a>		<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span> <span class="k">as</span> <span class="n">fid</span><span class="p">:</span>
 </span><span id="L-1267"><a href="#L-1267"><span class="linenos">1267</span></a>			<span class="n">datastring</span> <span class="o">=</span> <span class="n">fid</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
 </span><span id="L-1268"><a href="#L-1268"><span class="linenos">1268</span></a>
-</span><span id="L-1269"><a href="#L-1269"><span class="linenos">1269</span></a>	<span class="n">data</span> <span class="o">=</span> <span class="n">_cd</span><span class="o">.</span><span class="n">read_data</span><span class="p">(</span><span class="n">datastring</span><span class="p">)</span>
+</span><span id="L-1269"><a href="#L-1269"><span class="linenos">1269</span></a>	<span class="n">data</span> <span class="o">=</span> <span class="n">_cd</span><span class="o">.</span><span class="n">read_str</span><span class="p">(</span><span class="n">datastring</span><span class="p">)</span>
 </span><span id="L-1270"><a href="#L-1270"><span class="linenos">1270</span></a>
 </span><span id="L-1271"><a href="#L-1271"><span class="linenos">1271</span></a>	<span class="n">E</span> <span class="o">=</span> <span class="n">Engine</span><span class="p">()</span>
 </span><span id="L-1272"><a href="#L-1272"><span class="linenos">1272</span></a>
@@ -1469,20 +1469,19 @@ D95thermo    </h1>
 </span><span id="L-1301"><a href="#L-1301"><span class="linenos">1301</span></a>		<span class="s1">&#39;Tkp&#39;</span><span class="p">:</span> <span class="s1">&#39;z.2f&#39;</span><span class="p">,</span>
 </span><span id="L-1302"><a href="#L-1302"><span class="linenos">1302</span></a>	<span class="p">}</span>
 </span><span id="L-1303"><a href="#L-1303"><span class="linenos">1303</span></a>
-</span><span id="L-1304"><a href="#L-1304"><span class="linenos">1304</span></a>	<span class="n">out</span> <span class="o">=</span> <span class="n">_cd</span><span class="o">.</span><span class="n">data_string</span><span class="p">(</span>
-</span><span id="L-1305"><a href="#L-1305"><span class="linenos">1305</span></a>		<span class="n">data</span><span class="p">,</span>
-</span><span id="L-1306"><a href="#L-1306"><span class="linenos">1306</span></a>		<span class="n">float_format</span> <span class="o">=</span> <span class="n">ffmt</span><span class="p">,</span>
-</span><span id="L-1307"><a href="#L-1307"><span class="linenos">1307</span></a>		<span class="n">show_mixed_correl</span> <span class="o">=</span> <span class="n">show_mixed_correl</span><span class="p">,</span>
-</span><span id="L-1308"><a href="#L-1308"><span class="linenos">1308</span></a>		<span class="n">exclude_fields</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;correl_kslope&#39;</span><span class="p">],</span>
-</span><span id="L-1309"><a href="#L-1309"><span class="linenos">1309</span></a>	<span class="p">)</span>
-</span><span id="L-1310"><a href="#L-1310"><span class="linenos">1310</span></a>
-</span><span id="L-1311"><a href="#L-1311"><span class="linenos">1311</span></a>	<span class="k">if</span> <span class="n">output</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="L-1312"><a href="#L-1312"><span class="linenos">1312</span></a>		<span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
-</span><span id="L-1313"><a href="#L-1313"><span class="linenos">1313</span></a>	<span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-</span><span id="L-1314"><a href="#L-1314"><span class="linenos">1314</span></a>		<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fid</span><span class="p">:</span>
-</span><span id="L-1315"><a href="#L-1315"><span class="linenos">1315</span></a>			<span class="n">fid</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
-</span><span id="L-1316"><a href="#L-1316"><span class="linenos">1316</span></a>
-</span><span id="L-1317"><a href="#L-1317"><span class="linenos">1317</span></a><span class="k">def</span><span class="w"> </span><span class="nf">__cli</span><span class="p">():</span> <span class="n">__app</span><span class="p">()</span>
+</span><span id="L-1304"><a href="#L-1304"><span class="linenos">1304</span></a>	<span class="n">out</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">str</span><span class="p">(</span>
+</span><span id="L-1305"><a href="#L-1305"><span class="linenos">1305</span></a>		<span class="n">float_format</span> <span class="o">=</span> <span class="n">ffmt</span><span class="p">,</span>
+</span><span id="L-1306"><a href="#L-1306"><span class="linenos">1306</span></a>		<span class="n">show_mixed_correl</span> <span class="o">=</span> <span class="n">show_mixed_correl</span><span class="p">,</span>
+</span><span id="L-1307"><a href="#L-1307"><span class="linenos">1307</span></a>		<span class="n">exclude_fields</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;correl_kslope&#39;</span><span class="p">],</span>
+</span><span id="L-1308"><a href="#L-1308"><span class="linenos">1308</span></a>	<span class="p">)</span>
+</span><span id="L-1309"><a href="#L-1309"><span class="linenos">1309</span></a>
+</span><span id="L-1310"><a href="#L-1310"><span class="linenos">1310</span></a>	<span class="k">if</span> <span class="n">output</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="L-1311"><a href="#L-1311"><span class="linenos">1311</span></a>		<span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+</span><span id="L-1312"><a href="#L-1312"><span class="linenos">1312</span></a>	<span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+</span><span id="L-1313"><a href="#L-1313"><span class="linenos">1313</span></a>		<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fid</span><span class="p">:</span>
+</span><span id="L-1314"><a href="#L-1314"><span class="linenos">1314</span></a>			<span class="n">fid</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+</span><span id="L-1315"><a href="#L-1315"><span class="linenos">1315</span></a>
+</span><span id="L-1316"><a href="#L-1316"><span class="linenos">1316</span></a><span class="k">def</span><span class="w"> </span><span class="nf">__cli</span><span class="p">():</span> <span class="n">__app</span><span class="p">()</span>
 </span></pre></div>
 
 
@@ -1907,7 +1906,7 @@ or if <code>CM</code> is specified.</li>
 </span><span id="Engine-369"><a href="#Engine-369"><span class="linenos"> 369</span></a><span class="sd">	&quot;&quot;&quot;</span>
 </span><span id="Engine-370"><a href="#Engine-370"><span class="linenos"> 370</span></a>
 </span><span id="Engine-371"><a href="#Engine-371"><span class="linenos"> 371</span></a>	<span class="c1"># D47_calib_coefs from OGLS23 (D47calib v1.3.1)</span>
-</span><span id="Engine-372"><a href="#Engine-372"><span class="linenos"> 372</span></a>	<span class="n">D47_calib_coefs</span> <span class="o">=</span> <span class="n">_cd</span><span class="o">.</span><span class="n">read_data</span><span class="p">(</span><span class="s1">&#39;&#39;&#39;</span>
+</span><span id="Engine-372"><a href="#Engine-372"><span class="linenos"> 372</span></a>	<span class="n">D47_calib_coefs</span> <span class="o">=</span> <span class="n">_cd</span><span class="o">.</span><span class="n">read_str</span><span class="p">(</span><span class="s1">&#39;&#39;&#39;</span>
 </span><span id="Engine-373"><a href="#Engine-373"><span class="linenos"> 373</span></a><span class="s1">              coefs,                     SE,        correl,</span>
 </span><span id="Engine-374"><a href="#Engine-374"><span class="linenos"> 374</span></a><span class="s1">0.17437754366432887,   4.911105567257293e-3,    1.        , -0.93797005,  0.8865771</span>
 </span><span id="Engine-375"><a href="#Engine-375"><span class="linenos"> 375</span></a><span class="s1"> -18.14215245127414,      5.632326472234856,   -0.93797005,  1.        , -0.98994249</span>
@@ -1926,7 +1925,7 @@ or if <code>CM</code> is specified.</li>
 </span><span id="Engine-388"><a href="#Engine-388"><span class="linenos"> 388</span></a>	<span class="c1"># 	correl_format = &#39;z.12f&#39;,</span>
 </span><span id="Engine-389"><a href="#Engine-389"><span class="linenos"> 389</span></a>	<span class="c1"># ))</span>
 </span><span id="Engine-390"><a href="#Engine-390"><span class="linenos"> 390</span></a>
-</span><span id="Engine-391"><a href="#Engine-391"><span class="linenos"> 391</span></a>	<span class="n">D48_calib_coefs</span> <span class="o">=</span> <span class="n">_cd</span><span class="o">.</span><span class="n">read_data</span><span class="p">(</span><span class="s1">&#39;&#39;&#39;</span>
+</span><span id="Engine-391"><a href="#Engine-391"><span class="linenos"> 391</span></a>	<span class="n">D48_calib_coefs</span> <span class="o">=</span> <span class="n">_cd</span><span class="o">.</span><span class="n">read_str</span><span class="p">(</span><span class="s1">&#39;&#39;&#39;</span>
 </span><span id="Engine-392"><a href="#Engine-392"><span class="linenos"> 392</span></a><span class="s1">         coefs,         SE_coefs,    correl_coefs,                ,                ,                ,</span>
 </span><span id="Engine-393"><a href="#Engine-393"><span class="linenos"> 393</span></a><span class="s1">0.121349237888, 0.00390048540724,  1.000000000000, -0.664181963395,  0.664181963395, -0.664181963395,  0.664181963395</span>
 </span><span id="Engine-394"><a href="#Engine-394"><span class="linenos"> 394</span></a><span class="s1"> 6.22931985613,    0.32896761459, -0.664181963395,  1.000000000000, -1.000000000000,  1.000000000000, -1.000000000000</span>

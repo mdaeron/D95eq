@@ -1,4 +1,4 @@
-__version__     = "0.10.0"
+__version__     = "1.0.0b1"
 __description__ = "Estimate carbonate formation temperatures from dual clumped isotope measurements"
 __authors__     = "Mathieu Daëron & Timothy Pollard"
 __contact__     = "mathieu@daeron.fr"

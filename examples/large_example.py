@@ -1,4 +1,4 @@
-from correldata import read_data_from_file, save_data_to_file, uarray, data_string
+from correldata import uarray, CorrelData
 import numpy as _np
 import uncertainties as _uc
 from warnings import filterwarnings
@@ -162,14 +162,13 @@ measurement uncertainties, $Δ_{47}$ and $Δ_{48}$ calibration uncertainties, an
 	_ppl.axis([0.15, 0.78, None, None])
 	_ppl.savefig(f'large_example_plot_{k}_{funD47eqname}.pdf')
 
-	data = dict(
+	data = CorrelData(dict(
 		D47 = X,
 		D48 = Y,
-	)
+	))
 
 	data['pvalue_eq'] = p
 	data['Teq'] = Teq
 	data['Tkp'] = Tp
 
-# 	print(data_string(data))
-	save_data_to_file(data, f'output_{k}_{funD47eqname}.csv')
+	data.to_csv(f'output_{k}_{funD47eqname}.csv')

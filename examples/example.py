@@ -1,4 +1,4 @@
-from correldata import read_data_from_file, save_data_to_file
+from correldata import CorrelData, read_csv
 import numpy as _np
 import uncertainties as _uc
 from warnings import filterwarnings
@@ -36,7 +36,7 @@ p_cutoff = 0.05
 eq_color = (0, 0.5, 0)
 diseq_color = (.8, 0, 0.4)
 
-data = read_data_from_file('example_data.csv')
+data = read_csv('example_data.csv')
 X = data['D47']
 Y = data['D48']
 
@@ -178,7 +178,7 @@ data['pvalue_eq'] = pD47
 data['Teq'] = E.T_as_function_of_D47(D47eq)
 data['Tkp'] = E.T_as_function_of_D47(D47p)
 
-save_data_to_file(data, 'output.csv')
+data.to_csv('output.csv')
 
 save_Teq_report(
 	X,
