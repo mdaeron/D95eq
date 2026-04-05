@@ -5,7 +5,8 @@ description = "Estimate carbonate formation temperatures from dual clumped isoto
 readme = "readme.md"
 requires-python = ">=3.14"
 dependencies = [
-    "correldata>=1.6.0",
+	"uncertainties>=3.2.3",
+	"correldata>=1.6.0",
     "lmfit>=1.3.4",
     "matplotlib>=3.10.8",
     "ogls>=1.0.1",

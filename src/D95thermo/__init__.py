@@ -34,11 +34,30 @@ from numpy.typing import ArrayLike
 from typing_extensions import Annotated as _Annotated
 from typer import rich_utils as _rich_utils
 
+from warnings import filterwarnings as _filterwarnings
+_filterwarnings('ignore', category = FutureWarning, message = 'AffineScalarFunc')
+_filterwarnings('ignore', category = RuntimeWarning, message = 'The iteration is not making good progress')
+
 
 ### Mathematical functions ###
 
 
-def ufloat_compatible_interp(xi, yi, x):
+def ufloat_compatible_interp(
+	xi: (_cd.uarray | ArrayLike),
+	yi: (_cd.uarray | ArrayLike),
+	x: (float | _uc.UFloat | _cd.uarray | ArrayLike),
+):
+	"""
+	Linear interpolation accepting UFloat values for all three input parameters.
+	Only handles one interpolated value. For interpolated arrays, use `uarray_compatible_interp()`
+
+	**Arguments**
+	* `xi`: x-values defining the interpolated function
+	* `yi`: y-values defining the interpolated function
+	* `x`: x-value of the interpolation point
+
+	Returns y-value of the interpolation point, either as a float or a UFloat.
+	"""
 	xn = x.nominal_value if isinstance(x, _uc.UFloat) else float(x)
 	idx = _np.searchsorted(xi, xn)
 	idx = _np.clip(idx, 1, len(xi) - 1)
@@ -53,12 +72,43 @@ def ufloat_compatible_interp(xi, yi, x):
 
 
 def uarray_compatible_interp(xi, yi):
+	"""
+	Linear interpolation accepting UFloat values for all three input parameters.
+
+	**Arguments**
+	* `xi`: x-values defining the interpolated function
+	* `yi`: y-values defining the interpolated function
+
+	Returns an interpolation function which returns arrays or uarrays of y-values.
+	"""
 	return _np.vectorize(
 		lambda x: ufloat_compatible_interp(xi, yi, x)
 	)
 
 
 def transform_pdf_monotonic(f_inv, df_inv, mu_x, sigma_x, yi):
+	"""
+	Compute probability distribution function of Y = f(X)
+	where X ~ Normal(mu_x, sigma_x) and f is monotonic,
+	based on the change-of-variables formula:
+
+		p[y=f(x)] = p[x=f_inv(y)] * d(f_inv)/dy
+
+	Additionally, if f_inv returns UFloats, the PDF is convolved with that local
+	source of uncertainty (assumed to be Gaussian) at each grid point.
+
+	As currently implemented, requires `yi` to be an equally spaced array-like.
+
+	**Arguments**
+		f_inv:   inverse of f, may return UFloats
+		df_inv:  derivative of f_inv, should return UFloats if f_inv does
+		mu_x:    mean of X PDF
+		sigma_x: std dev of X PDF
+		yi:      regularly spaced grid of y values at which to evaluate the PDF
+
+	**Returns:**
+		pdf: normalized PDF evaluated at yi
+	"""
 
 	if not _np.allclose(_np.diff(yi), yi[1] - yi[0]):
 		raise ValueError("yi must be regularly spaced")
@@ -207,6 +257,9 @@ def D4x_calib_function(
 	* `T`: temperature(s) for which to compute Δ<sub>4x</sub>
 	* `return_without_uncertainties`: if `True`, returns D4x values without error propagation of any kind.
 	* `ignore_calib_uncertainties`: whether to propagate calibration uncertainties.
+
+	**Returns:**
+	* Equilibrium D4x value(s) corresponding to `T` values
 	"""
 	degs = _np.arange(coefs.size)
 
@@ -227,6 +280,15 @@ def D4x_calib_derivative(
 	return_without_uncertainties: bool = False,
 	ignore_calib_uncertainties: bool = False,
 ) -> (float | _uc.UFloat | _cd.uarray | ArrayLike):
+	"""
+	**Arguments**
+	* `T`: temperature(s) for which to compute Δ<sub>4x</sub>
+	* `return_without_uncertainties`: if `True`, returns D4x values without error propagation of any kind.
+	* `ignore_calib_uncertainties`: whether to propagate calibration uncertainties.
+
+	**Returns:**
+	* d(D4x)/dT corresponding to `T` values
+	"""
 	dcoefs = -_np.arange(len(coefs)) * coefs
 	dcoefs = _cd.uarray((dcoefs[0], *dcoefs))
 	return D4x_calib_function(
@@ -1213,7 +1275,8 @@ Reads data from an input file, computes p-value and T estimates, and print out t
 
 	E = Engine()
 
-	Teq, p = E.nearest_Teq(data['D47'], data['D48'])
+	D47eq, D48eq, p = E.nearest_D47eq(data['D47'], data['D48'])
+	Teq = E.T_as_function_of_D47(D47eq)
 	data['eq_pvalue'] = p
 	data['Teq'] = Teq
 
@@ -1222,7 +1285,8 @@ Reads data from an input file, computes p-value and T estimates, and print out t
 		kslope = kslope.split('(')
 		kslope = _uc.ufloat(float(kslope[0]), float(kslope[1]))
 
-		Tkp = E.projected_Teq(data['D47'], data['D48'], kinetic_slope = kslope)
+		D47kp, D48kp = E.projected_D47eq(data['D47'], data['D48'], kinetic_slope = kslope)
+		Tkp = E.T_as_function_of_D47(D47kp)
 
 		data['kslope'] = _cd.uarray([kslope for _ in data['D47']])
 
