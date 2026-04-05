@@ -192,7 +192,7 @@ def _compute_D48_calib_coefficients(reprocess = False):
 	ETH-2-1100, 0.1225, 0.0070, 1100.0,  10., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1.
 	'''[1:-2]
 
-		data = _cd.read_data(datastr)
+		data = _cd.read_str(datastr)
 		T, D48 = data['T'], data['D48']
 
 
@@ -368,7 +368,7 @@ class Engine():
 	"""
 
 	# D47_calib_coefs from OGLS23 (D47calib v1.3.1)
-	D47_calib_coefs = _cd.read_data('''
+	D47_calib_coefs = _cd.read_str('''
               coefs,                     SE,        correl,
 0.17437754366432887,   4.911105567257293e-3,    1.        , -0.93797005,  0.8865771
  -18.14215245127414,      5.632326472234856,   -0.93797005,  1.        , -0.98994249
@@ -387,7 +387,7 @@ class Engine():
 	# 	correl_format = 'z.12f',
 	# ))
 
-	D48_calib_coefs = _cd.read_data('''
+	D48_calib_coefs = _cd.read_str('''
          coefs,         SE_coefs,    correl_coefs,                ,                ,                ,
 0.121349237888, 0.00390048540724,  1.000000000000, -0.664181963395,  0.664181963395, -0.664181963395,  0.664181963395
  6.22931985613,    0.32896761459, -0.664181963395,  1.000000000000, -1.000000000000,  1.000000000000, -1.000000000000
@@ -1266,7 +1266,7 @@ Reads data from an input file, computes p-value and T estimates, and print out t
 		with open(input) as fid:
 			datastring = fid.read()
 
-	data = _cd.read_data(datastring)
+	data = _cd.read_str(datastring)
 
 	E = Engine()
 

@@ -106,15 +106,14 @@ wheels = [
 
 [[package]]
 name = "correldata"
-version = "1.6.0"
+version = "2.0.0b2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy" },
     { name = "uncertainties" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4d/69/e8b07326688adc1a602031b8f2a02b7dc34297efbe9e6770c5242c895ae3/correldata-1.6.0.tar.gz", hash = "sha256:160bccd4fe9de9af7c97f677f899adb65289734763742f4dbb1152919638168c", size = 58667, upload-time = "2024-11-02T17:59:30.112Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fc/a9/8fe76c7c75b4993069495352f3f4277100a15457fbb9d20ee3ad2cbd8e4a/correldata-2.0.0b2.tar.gz", hash = "sha256:5dc860d72b6c9532eb0fd708a03a1d199c5b5d6204d82a95fa3cc96039d51bd4", size = 8768, upload-time = "2026-04-05T09:28:52.827Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0a/30/cbafb139e0c62d6b350443dc6cf2783f6c26d6734b7a7b2ca4599ef713c0/correldata-1.6.0-py3-none-any.whl", hash = "sha256:9de98a8930121bda8598d96dde96c97a985a7a32da0b52b7c39f60d5fb0d4736", size = 8762, upload-time = "2024-11-02T17:59:26.33Z" },
+    { url = "https://files.pythonhosted.org/packages/01/a8/e14db25cb4607d6085471586e7f872ec945bb3073df9b41bde113839e4aa/correldata-2.0.0b2-py3-none-any.whl", hash = "sha256:eb7c84c31d686fa91d5dab931e2f8c6544ab3695f370cd5d25653693be9ded50", size = 10336, upload-time = "2026-04-05T09:28:51.924Z" },
 ]
 
 [[package]]
@@ -128,7 +127,7 @@ wheels = [
 
 [[package]]
 name = "d95thermo"
-version = "0.10.0"
+version = "1.0.0b1"
 source = { editable = "." }
 dependencies = [
     { name = "correldata" },
@@ -149,7 +148,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "correldata", specifier = ">=1.6.0" },
+    { name = "correldata", specifier = ">=2.0.0b2" },
     { name = "lmfit", specifier = ">=1.3.4" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "ogls", specifier = ">=1.0.1" },
