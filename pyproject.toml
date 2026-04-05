@@ -3,7 +3,8 @@ name = "D95thermo"
 version = "1.0.0b1"
 description = "Estimate carbonate formation temperatures from dual clumped isotope measurements"
 readme = "readme.md"
-license = { "text" = "MIT License: https://opensource.org/licenses/MIT" }
+license = "MIT"
+classifiers = ["License :: OSI Approved :: MIT License"]
 authors = [
 	{ name = "Mathieu Daëron",  email = "mathieu@daeron.fr" },
 	{ name = "Timothy Pollard", email = "timothy.pollard@unimelb.edu.au" }
