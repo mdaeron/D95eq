@@ -106,14 +106,19 @@ wheels = [
 
 [[package]]
 name = "correldata"
-version = "2.0.0b2"
-source = { registry = "https://pypi.org/simple" }
+version = "2.0.0b4"
+source = { editable = "../correldata" }
 dependencies = [
     { name = "uncertainties" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fc/a9/8fe76c7c75b4993069495352f3f4277100a15457fbb9d20ee3ad2cbd8e4a/correldata-2.0.0b2.tar.gz", hash = "sha256:5dc860d72b6c9532eb0fd708a03a1d199c5b5d6204d82a95fa3cc96039d51bd4", size = 8768, upload-time = "2026-04-05T09:28:52.827Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/01/a8/e14db25cb4607d6085471586e7f872ec945bb3073df9b41bde113839e4aa/correldata-2.0.0b2-py3-none-any.whl", hash = "sha256:eb7c84c31d686fa91d5dab931e2f8c6544ab3695f370cd5d25653693be9ded50", size = 10336, upload-time = "2026-04-05T09:28:51.924Z" },
+
+[package.metadata]
+requires-dist = [{ name = "uncertainties", specifier = ">=3.2.3" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pdoc", specifier = ">=16.0.0" },
+    { name = "pytest", specifier = ">=9.0.2" },
 ]
 
 [[package]]
@@ -148,7 +153,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "correldata", specifier = ">=2.0.0b2" },
+    { name = "correldata", editable = "../correldata" },
     { name = "lmfit", specifier = ">=1.3.4" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "ogls", specifier = ">=1.0.1" },
