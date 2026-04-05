@@ -1,9 +1,9 @@
-default: version doc
+default: metadata doc
 
-all: coefs pytest examples version doc cli
+all: coefs pytest examples metadata doc cli
 
-version:
-	uv run update-version.py
+metadata:
+	uv run build-metadata.py
 
 examples:
 	cd examples; uv run example.py; uv run large_example.py
@@ -24,3 +24,6 @@ doc:
 cli:
 	uv run D95thermo -v
 	uv run D95thermo -i examples/example_data.csv -k '-1(0.1)'
+
+diff:
+	git diff --stat -- ':!*.png' ':!*.html' ':!*.pdf' ':!*.csv'

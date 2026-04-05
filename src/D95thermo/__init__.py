@@ -7,12 +7,7 @@ Estimate carbonate formation temperatures from dual clumped isotope measurements
 * * *
 """
 
-__author__    = 'Mathieu Daëron'
-__contact__   = 'mathieu@daeron.fr'
-__license__   = 'MIT License - https://opensource.org/licenses/MIT'
-__date__      = '2026-03-30'
-
-from .__version__ import __version__ as __version__
+from ._metadata import *
 
 import sys
 import numpy as _np
