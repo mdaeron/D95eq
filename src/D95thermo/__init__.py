@@ -250,11 +250,10 @@ def D4x_calib_function(
 	"""
 	**Arguments**
 	* `T`: temperature(s) for which to compute Δ<sub>4x</sub>
-	* `return_without_uncertainties`: if `True`, returns D4x values without error propagation of any kind.
-	* `ignore_calib_uncertainties`: whether to propagate calibration uncertainties.
+	* `return_without_uncertainties`: if `True`, returns Δ<sub>4x</sub> values without error propagation of any kind
+	* `ignore_calib_uncertainties`: whether to propagate calibration uncertainties
 
-	**Returns:**
-	* Equilibrium D4x value(s) corresponding to `T` values
+	Returns equilibrium Δ<sub>4x</sub> value(s) corresponding to `T` value(s)
 	"""
 	degs = _np.arange(coefs.size)
 
@@ -281,8 +280,7 @@ def D4x_calib_derivative(
 	* `return_without_uncertainties`: if `True`, returns D4x values without error propagation of any kind.
 	* `ignore_calib_uncertainties`: whether to propagate calibration uncertainties.
 
-	**Returns:**
-	* d(D4x)/dT corresponding to `T` values
+	Returns d(D4x)/dT corresponding to `T` value(s)
 	"""
 	dcoefs = -_np.arange(len(coefs)) * coefs
 	dcoefs = _cd.uarray((dcoefs[0], *dcoefs))
@@ -308,8 +306,7 @@ def conf_ellipse(
 	**kwargs,
 ) -> tuple:
 	"""
-	Plot the joint *p*-level confidence ellipses for the elements of (X, Y),
-	and return a list of the `Ellipse` objects thus created.
+	Plot the joint *p*-level confidence ellipses for the elements of (X, Y)
 
 	**Arguments**
 	* `X`: x values
@@ -323,6 +320,8 @@ def conf_ellipse(
 		or if `CM` is specified.
 	* `ax`: which instance of `matplotlib.axes.Axes` to draw in; use current axes if `ax` = `None`.
 	* `kwargs`: passed to `matplotlib.patches.Ellipse()`
+
+	Returns a list of the `Ellipse` objects thus created.
 	"""
 
 
@@ -411,6 +410,9 @@ class Engine():
 		**Arguments**
 		* `D47_coefs`: `ndarray` or `uarray` of coefficients to use instead of default ones, ordered as (a0, a1, a2...)
 		* `D48_coefs`: `ndarray` or `uarray` of coefficients to use instead of default ones, ordered as (a0, a1, a2...)
+		* `Tmin_interp`: minimum temperature over which to interpolate for inverse function computations
+		* `Tmax_interp`: maximum temperature over which to interpolate for inverse function computations
+		* `N_interp`: number of points (equally-spaced in 1/T space) over which to interpolate for inverse function computations
 		"""
 
 		self.D47_coefs = Engine.D47_calib_coefs if D47_coefs is None else D47_coefs
@@ -473,22 +475,36 @@ class Engine():
 
 	def T_as_function_of_D47(
 		self,
-		D47,
-		ignore_calib_uncertainties = False,
+		D47: (_cd.uarray | ArrayLike),
+		ignore_calib_uncertainties: bool = False,
 	):
+		"""
+		Provided with one or more Δ<sub>47</sub> values (floats or ufloats), return ufloats for the
+		corresponding equilibrium T values (ufloats with or without Δ<sub>47</sub> calibration uncertainties).
+
+		**Arguments**
+		* `D47`: array of Δ<sub>47</sub> values
+		* `ignore_calib_uncertainties`: whether to propagate calibration uncertainties
+		"""
 		if ignore_calib_uncertainties:
 			return _cd.uarray(self.interp.Teq_as_function_of_D47n(D47))
 		else:
 			return _cd.uarray(self.interp.Teq_as_function_of_D47u(D47))
 
-	def D47u_as_function_of_D47n(self, D47):
+	def D47u_as_function_of_D47n(
+		self,
+		D47: ArrayLike
+	):
 		"""
 		Provided with one or more Δ<sub>47</sub> values (floats), return ufloats for the corresponding
 		equilibrium Δ<sub>47</sub> values (ufloats with Δ<sub>47</sub> calibration uncertainties).
 		"""
 		return _cd.uarray(self.interp.D47u_as_function_of_D47n(D47))
 
-	def D48u_as_function_of_D47n(self, D47):
+	def D48u_as_function_of_D47n(
+		self,
+		D47: ArrayLike
+	):
 		"""
 		Provided with one or more Δ<sub>47</sub> values (floats), return ufloats for the corresponding
 		equilibrium Δ<sub>48</sub> values (ufloats with Δ<sub>48</sub> calibration uncertainties).
@@ -521,8 +537,8 @@ class Engine():
 			ignore_calib_uncertainties = ignore_calib_uncertainties,
 		)
 
-	D47_calib_function.__doc__ = D4x_calib_function.__doc__
-	D48_calib_function.__doc__ = D4x_calib_function.__doc__
+	D47_calib_function.__doc__ = D4x_calib_function.__doc__.replace('Δ<sub>4x</sub>', 'Δ<sub>47</sub>')
+	D48_calib_function.__doc__ = D4x_calib_function.__doc__.replace('Δ<sub>4x</sub>', 'Δ<sub>48</sub>')
 
 	def T_ellipse(
 		self,
@@ -747,7 +763,7 @@ class Engine():
 		ignore_calib_uncertainties = False,
 	):
 		"""
-		Used by the various `nearest_D47eq()` methods below.
+		Used by the various `Engine.nearest_D47eq()` methods
 		"""
 		N = D47.size
 
@@ -790,9 +806,10 @@ class Engine():
 		and Δ<sub>48</sub> (and any covariance between the two) as well as errors in the
 		Δ<sub>47</sub> and Δ<sub>48</sub> calibrations.
 
-		This is both the fastest and the strongly recommended version of this calculation.
-		It is expected to yield an `uarray` with reasonably accurate covariance between the
-		`D47eq` values, but also between `D47eq` and all other variables.
+		> [!NOTE]
+		> This is both the fastest and the strongly recommended version of this calculation.
+		> It is expected to yield an `uarray` with reasonably accurate covariance between the
+		> `D47eq` values, but also between `D47eq` and all other variables.
 		"""
 
 		N = D47.size
@@ -880,12 +897,13 @@ class Engine():
 		(and any covariance between the two) as well as errors in the Δ<sub>47</sub> and
 		Δ<sub>48</sub> calibrations.
 
-		Caution: the use of this function is **not generally recommended** except for
-		experimentation purposes, because it is conceptually and numerically risky to *jointly*
-		fit the sequence of `D47eq` values, as opposed to fitting each of them individually,
-		as done by the recommended function `nearest_D47eq()`.
+		> [!CAUTION]
+		> Caution: the use of this function is **not generally recommended** except for
+		> experimentation purposes, because it is conceptually and numerically risky to *jointly*
+		> fit the sequence of `Teq` values, as opposed to fitting each of them individually,
+		> as done by the recommended function `nearest_D47eq()`.
 
-		This is both the slowest and most complete version of this calculation.
+		This is the most complete but slowest and not recommended version of this calculation.
 		It is expected to yield an `uarray` with reasonably accurate covariance between the
 		`D47eq` values, but also between `D47eq` and all other variables.
 
@@ -976,10 +994,11 @@ class Engine():
 		(and any covariance between the two) as well as errors in the Δ<sub>47</sub> and
 		Δ<sub>48</sub> calibrations.
 
-		Caution: the use of this function is **not generally recommended** except for
-		experimentation purposes, because it is conceptually and numerically risky to *jointly*
-		fit the sequence of `Teq` values, as opposed to fitting each of them individually,
-		as done by the recommended function `nearest_D47eq()`.
+		> [!CAUTION]
+		> Caution: the use of this function is **not generally recommended** except for
+		> experimentation purposes, because it is conceptually and numerically risky to *jointly*
+		> fit the sequence of `Teq` values, as opposed to fitting each of them individually,
+		> as done by the recommended function `nearest_D47eq()`.
 
 		This is a faster but incomplete version of this calculation. It is expected to yield an
 		`uarray` with roughly accurate covariance between the `Teq` values, but without computing
@@ -1035,6 +1054,21 @@ class Engine():
 		D48: _cd.uarray,
 		kinetic_slope: (float | _uc.UFloat),
 	):
+		"""
+		Projects one or more (Δ<sub>47</sub>, Δ<sub>48</sub>) observations onto the equlibrium curve
+		following a kinetic fractionation vector with a given slope (∂Δ<sub>48</sub>/∂Δ<sub>47</sub>).
+
+		**Arguments**
+		* `D47`: observed Δ<sub>47</sub> value(s)
+		* `D48`: observed Δ<sub>48</sub> value(s)
+		* `kinetic_slope`: kinetic fractionation slopw, with or without uncertainty
+
+		Returns a tuple of uarrays corresponding to the projected Δ<sub>47</sub> and Δ<sub>48</sub> values.
+
+		> [!NOTE]
+		> This is not a least-squares minimization problem but a direct calculation, and should thus
+		> be much faster than the various `CorelData.nearestD47eq()` methods.
+		"""
 
 		D47 = _cd.uarray(D47)
 		D48 = _cd.uarray(D48)
@@ -1088,18 +1122,39 @@ class Engine():
 
 		return D47p, D48p
 
-	def Teq_pdf( # TODO: account for calib uncertainties
+	def Teq_pdf(
 		self,
 		D47: _uc.ufloat,
 		Tmin: (float | None)             = None,
 		Tmax: (float | None)             = None,
-		Tinc: (float | None)             = None,
-		default_Tinc: float              = 0.2,
+		Tinc: float                      = 0.2,
 		default_D47_sigmas: float        = 4.0,
 		ignore_calib_uncertainties: bool = False,
 		run_qmc: bool                    = False,
 		N_qmc: int                       = 1024,
 	):
+		"""
+		Compute the unit-normalized probability distribution function (PDF) of the
+		equilibrium temperature (`Teq`) for a given (`UFloat`) value of Δ<sub>47</sub>.
+
+		**Arguments**
+		* `D47`: Δ<sub>47</sub> value (with uncertainty)
+		* `Tmin`: minimum temperature over which to compute the PDF; if not specified,
+		use temperature corresponding to `D47.n + `default_D47_sigmas` * D47.s`
+		* `Tmax`: maximum temperature over which to compute the PDF; if not specified,
+		use temperature corresponding to `D47.n - `default_D47_sigmas` * D47.s`
+		* `Tinc`: temperature increment over which to compute the PDF
+		* `default_D47_sigmas`: see `Tmin` and `Tmin` above
+		* `ignore_calib_uncertainties`: whether to propagate calibration uncertainties
+		* `run_qmc`: whether to also run a Quasi Monte carlo simulation to estimate the PDF
+		* `N_qmc`: number of iterations in the above Quasi Monte Carlo simulation
+
+		**Returns**
+		* `Ti`: Evenly-spaced array of temperature values over which the PDF is computed
+		* `pdf`: PDF evaluated over `Ti`
+		* `Tqmc` (only returned if `run_qmc = True`): array of `N_qmc` temperature values
+		computed in the Quasi Monte Carlo simulation
+		"""
 
 		if Tmin is None:
 			Tmin = _np.floor(self.T_as_function_of_D47(
@@ -1144,7 +1199,6 @@ class Engine():
 
 			from scipy.stats import qmc
 			from tqdm.rich import tqdm
-
 
 			#parameters to jiggle
 			input_params = _cd.uarray([D47, *self.D47_coefs])
@@ -1206,8 +1260,9 @@ def save_Teq_report(
 ):
 	"""
 	Save a temperature report to a csv file.
-	Includes D47, D48, p-equilibrium values, and nearest Teq with sensible precision defaults.
-	Alternatively, `correldata.data_string()` may be more versatile.
+	Includes observed `D47`, `D48`, p-equilibrium values, and nearest `Teq` with sensible precision defaults.
+	Alternatively, users may find [`correldata.CorrelData.str()`](https://mdaeron.github.io/correldata/#CorrelData.str)
+	to be more versatile.
 	"""
 	N = T.size
 	if labels is None:
