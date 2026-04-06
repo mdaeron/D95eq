@@ -8,6 +8,7 @@ Estimate carbonate formation temperatures from dual clumped isotope measurements
 """
 
 from ._metadata import *
+from ._tools import confidence_band
 
 import sys
 import numpy as _np
@@ -20,6 +21,7 @@ import typer as _typer
 from uncertainties import unumpy as _unp
 from matplotlib import pyplot as _ppl
 from matplotlib.patches import Ellipse as _Ellipse
+from matplotlib.patches import Polygon as _Polygon
 from scipy.stats import chi2 as _chi2
 from scipy.stats import norm as _norm
 from scipy.linalg import eigh as _eigh
@@ -569,6 +571,44 @@ class Engine():
 			**kwargs,
 		)
 
+	def plot_D95_confidence_band(
+		self,
+		p: float = 0.95,
+		Ti: (ArrayLike | None) = None,
+		ax: (_ppl.Axes | None) = None,
+		**kwargs,
+	):
+		"""
+		Plot, for a given p-value, the confidence band of the thermodynamic equilibrium curve
+		in (Δ<sub>47</sub>, Δ<sub>48</sub>) space.
+
+		**Arguments**
+		* `p`: confidence level
+		* `Ti`: array of temperatures over which to evaluate confidence band (default: use `interp.T` attribute instead)
+		* `ax`: `Axes` instance to plot to (default: use current Axes)
+		* `kwargs`: passed to `patches.Polygon()`
+
+		Returns the corresponding `Polygon` instance.
+		"""
+		if ax is None:
+			ax = _ppl.gca()
+		if Ti is None:
+			Ti = self.interp.T
+		polygon = ax.add_patch(
+			_Polygon(
+				confidence_band(
+					Ti,
+					self.D47_calib_function,
+					self.D48_calib_function,
+					p,
+				),
+				closed = True,
+				**kwargs,
+			)
+		)
+		return polygon
+
+
 	def plot_D95_equilibrium(
 		self,
 		Tmin: float = 0.,
@@ -582,11 +622,9 @@ class Engine():
 		kwargs_Tmarker_ellipses: dict = {},
 		show_eqline: bool = True,
 		kwargs_eqline: dict = {},
-		show_D47ci: bool = True,
-		kwargs_D47ci: dict = {},
-		show_D48ci: bool = True,
-		kwargs_D48ci: dict = {},
-		ci_pvalue: float = 0.95,
+		show_confidence: bool = True,
+		confidence_pvalue: float = 0.95,
+		kwargs_confidence: dict = {},
 		ax: (_ppl.Axes | None) = None,
 		xlabel: str = '$Δ_{47}$   [‰]',
 		ylabel: str = '$Δ_{48}$   [‰]',
@@ -608,11 +646,9 @@ class Engine():
 		* `kwargs_Tmarker_ellipses`: passed to `T_ellipses()` when plotting T marker ellipses
 		* `show_eqline`: whether to plot the equilibrium curve itself
 		* `kwargs_eqline`: passed to `plot()` when plotting the equilibrium curve
-		* `show_D47ci`: whether to plot the Δ<sub>47</sub> confidence band of the equilibrium curve
-		* `kwargs_D47ci`: passed to `fill_betweenx()` when plotting the Δ<sub>47</sub> confidence band
-		* `show_D48ci`: whether to plot the Δ<sub>48</sub> confidence band of the equilibrium curve
-		* `kwargs_D48ci`: passed to `fill_betweenx()` when plotting the Δ<sub>48</sub> confidence band
-		* `ci_pvalue`: confidence level for the Δ<sub>47</sub> and Δ<sub>48</sub> confidence band
+		* `show_confidence`: whether to plot the confidence band of the equilibrium curve
+		* `confidence_pvalue`: confidence level for the confidence band
+		* `kwargs_confidence`: passed to `plot_D95_confidence_band()` when plotting the confidence band
 		* `ax`: which instance of `matplotlib.axes.Axes` to draw in; use current axes if `ax` = `None`.
 		* `xlabel`: string to pass to `xlabel()`
 		* `ylabel`: string to pass to `ylabel()`
@@ -629,8 +665,7 @@ class Engine():
 
 		* `plot_elements`: a dict of the `Axes` elements generated for this plot:
 			- `eqline`: `Line2D` of the equilibrium curve
-			- `D47ci`: `PolyCollection` of the Δ<sub>47</sub> confidence band
-			- `D48ci`: `PolyCollection` of the Δ<sub>48</sub> confidence band
+			- `confidence`: `Polygon` object for the confidence band
 			- `Tm`: `Line2D` of the T markers
 			- `Tme`: list of `Ellipse` objects for the T marker ellipses
 			- `Tml`: list of `Text` objects for the T marker labels
@@ -642,15 +677,10 @@ class Engine():
 			color = 'k',
 			lw = lw,
 		)
-		default_kwargs_D48ci = dict(
-			color = 'k',
-			lw = 0,
-			alpha = 0.15,
-		)
-		default_kwargs_D47ci = dict(
-			color = 'k',
-			lw = 0,
-			alpha = 0.15,
+		default_kwargs_confidence = dict(
+			ec = (0,0,0,1),
+			fc = (0,0,0,0.15),
+			lw = 0.,
 		)
 		default_kwargs_Tmarkers = dict(
 			ls = 'None',
@@ -687,8 +717,6 @@ class Engine():
 		ax.set_xlabel(xlabel)
 		ax.set_ylabel(ylabel)
 
-		cif = _chi2.ppf(ci_pvalue, 1)**.5
-
 		Xe = self.D47_calib_function(Ti)
 		Ye = self.D48_calib_function(Ti)
 
@@ -699,20 +727,11 @@ class Engine():
 				**(default_kwargs_eqline | kwargs_eqline),
 			)
 
-		if show_D48ci:
-			plot_elements['D48ci'] = ax.fill_between(
-				_unp.nominal_values(Xe),
-				_unp.nominal_values(Ye) - cif * _unp.std_devs(Ye),
-				_unp.nominal_values(Ye) + cif * _unp.std_devs(Ye),
-				**(default_kwargs_D48ci | kwargs_D48ci),
-			)
-
-		if show_D47ci:
-			plot_elements['D47ci'] = ax.fill_betweenx(
-				_unp.nominal_values(Ye),
-				_unp.nominal_values(Xe) - cif * _unp.std_devs(Xe),
-				_unp.nominal_values(Xe) + cif * _unp.std_devs(Xe),
-				**(default_kwargs_D47ci | kwargs_D47ci),
+		if show_confidence:
+			plot_elements['confidence'] = self.plot_D95_confidence_band(
+				p = confidence_pvalue,
+				ax = ax,
+				**(default_kwargs_confidence | kwargs_confidence),
 			)
 
 		Xm = self.D47_calib_function(Tmarkers)
