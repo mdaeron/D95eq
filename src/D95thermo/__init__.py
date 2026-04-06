@@ -8,6 +8,7 @@ Estimate carbonate formation temperatures from dual clumped isotope measurements
 """
 
 from ._metadata import *
+from ._tools import *
 
 import sys
 import numpy as _np
