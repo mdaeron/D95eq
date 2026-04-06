@@ -4,5 +4,5 @@ __authors__     = "Mathieu Daëron & Timothy Pollard"
 __contact__     = "mathieu@daeron.fr"
 __license__     = "MIT"
 __copyright__   = "Mathieu Daëron"
-__date__        = "2026-04-05"
+__date__        = "2026-04-06"
 __all__         = ["__version__", "__description__", "__authors__", "__contact__", "__license__", "__copyright__", "__date__"]

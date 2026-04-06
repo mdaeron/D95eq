@@ -8,7 +8,7 @@ Estimate carbonate formation temperatures from dual clumped isotope measurements
 """
 
 from ._metadata import *
-from ._tools import *
+from ._tools import confidence_band
 
 import sys
 import numpy as _np
@@ -1168,9 +1168,6 @@ class Engine():
 				D47.n - default_D47_sigmas * D47.s,
 				ignore_calib_uncertainties = ignore_calib_uncertainties,
 			).n)
-
-		if Tinc is None:
-			Tinc = default_Tinc
 
 		assert Tmin < Tmax, "Tmax must be strictly greater than Tmin"
 		assert Tinc > 0, "Tinc must be strictly greater than zero"
