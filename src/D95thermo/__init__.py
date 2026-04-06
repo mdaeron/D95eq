@@ -1168,9 +1168,6 @@ class Engine():
 				ignore_calib_uncertainties = ignore_calib_uncertainties,
 			).n)
 
-		if Tinc is None:
-			Tinc = default_Tinc
-
 		assert Tmin < Tmax, "Tmax must be strictly greater than Tmin"
 		assert Tinc > 0, "Tinc must be strictly greater than zero"
 
