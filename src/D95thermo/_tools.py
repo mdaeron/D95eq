@@ -26,7 +26,7 @@ def confidence_band(
 	* `fy`: parametric function of `t` yielding y values of ***C*** as
 	[UFloat](https://pythonhosted.org/uncertainties/tech_guide.html) values
 	* `p`: p-value for the confidence region to return
-	* `p`: p-value for the confidence region to return
+	* `dt`: `t` scale at which to evaluate derivatives
 
 	Returns a (N, 2) array of (x, y) vertices.
 	"""
