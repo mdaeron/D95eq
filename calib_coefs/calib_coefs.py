@@ -1,7 +1,7 @@
 import numpy as _np
 import correldata
-from D95thermo import Engine
-from D95thermo import _compute_D48_calib_coefficients
+from D95eq import Engine
+from D95eq import _compute_D48_calib_coefficients
 
 
 coefs = Engine.D47_calib_coefs

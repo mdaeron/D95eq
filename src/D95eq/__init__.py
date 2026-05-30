@@ -1,5 +1,5 @@
 """
-Estimate carbonate formation temperatures from dual clumped isotope measurements
+Test for clumped isotope equilibrium and estimate carbonate formation temperatures from dual clumped isotope measurements
 
 .. include:: ../../docpages/install.md
 .. include:: ../../docpages/cli.md
@@ -357,7 +357,7 @@ def conf_ellipse(
 	return (*out,)
 
 
-### D95thermo Engine implementation ###
+### D95eq Engine implementation ###
 
 class _Interpolation():
 	pass

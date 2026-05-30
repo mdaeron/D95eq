@@ -1,4 +1,4 @@
-from D95thermo import *
+from D95eq import *
 from uncertainties import *
 from pylab import *
 from warnings import filterwarnings

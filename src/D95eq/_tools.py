@@ -3,7 +3,6 @@ import numpy as np
 from typing import Callable
 from numpy.typing import ArrayLike
 from scipy.stats import chi2
-from scipy.differentiate import derivative
 from uncertainties import covariance_matrix
 
 def confidence_band(
@@ -202,4 +201,4 @@ def confidence_band(
 
 	return np.array([band_x, band_y]).T
 
-confidence_band.__module__ = "D95thermo"
+confidence_band.__module__ = "D95eq"

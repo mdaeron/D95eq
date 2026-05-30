@@ -1,3 +1,5 @@
+print(f'Running large_examples.py ...')
+
 from correldata import uarray, CorrelData
 import numpy as _np
 import uncertainties as _uc
@@ -5,7 +7,7 @@ from warnings import filterwarnings
 filterwarnings('ignore', category = FutureWarning)
 
 from matplotlib import pyplot as _ppl
-from D95thermo import *
+from D95eq import *
 import time
 
 E = Engine()

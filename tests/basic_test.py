@@ -1,4 +1,4 @@
-from D95thermo import *
+from D95eq import *
 from uncertainties import UFloat, ufloat
 from correldata import uarray
 import numpy as np

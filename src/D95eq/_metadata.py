@@ -1,8 +1,8 @@
-__version__     = "1.1.0"
-__description__ = "Estimate carbonate formation temperatures from dual clumped isotope measurements"
+__version__     = "1.2.0"
+__description__ = "Test for clumped isotope equilibrium and estimate carbonate formation temperatures from dual clumped isotope measurements"
 __authors__     = "Mathieu Daëron & Timothy Pollard"
 __contact__     = "mathieu@daeron.fr"
 __license__     = "MIT"
 __copyright__   = "Mathieu Daëron"
-__date__        = "2026-04-06"
+__date__        = "2026-05-30"
 __all__         = ["__version__", "__description__", "__authors__", "__contact__", "__license__", "__copyright__", "__date__"]

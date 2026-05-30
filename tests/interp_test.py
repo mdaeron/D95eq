@@ -1,4 +1,4 @@
-from D95thermo import *
+from D95eq import *
 from pylab import *
 
 def test_interp():

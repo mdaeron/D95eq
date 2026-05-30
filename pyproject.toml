@@ -1,10 +1,9 @@
 [project]
-name = "D95thermo"
-version = "1.1.0"
-description = "Estimate carbonate formation temperatures from dual clumped isotope measurements"
+name = "D95eq"
+version = "1.2.0"
+description = "Test for clumped isotope equilibrium and estimate carbonate formation temperatures from dual clumped isotope measurements"
 readme = "readme.md"
 license = "MIT"
-classifiers = ["License :: OSI Approved :: MIT License"]
 authors = [
 	{ name = "Mathieu Daëron",  email = "mathieu@daeron.fr" },
 	{ name = "Timothy Pollard", email = "timothy.pollard@unimelb.edu.au" }
@@ -12,22 +11,23 @@ authors = [
 requires-python = ">=3.14"
 dependencies = [
 	"correldata>=2.0.0",
-    "lmfit>=1.3.4",
-    "matplotlib>=3.10.8",
-    "ogls>=1.0.1",
-    "tqdm>=4.67.1",
-    "typer>=0.21.1",
+	"lmfit>=1.3.4",
+	"matplotlib>=3.10.8",
+	"ogls>=1.0.1",
+	"tqdm>=4.67.1",
+	"typer>=0.21.1",
+	"typing-extensions>=4.15.0",
 ]
 
 [project.urls]
-Home = "https://github.com/mdaeron/D95thermo"
-Documentation = "https://mdaeron.github.io/D95thermo"
+Home = "https://github.com/mdaeron/D95eq"
+Documentation = "https://mdaeron.github.io/D95eq"
 
 [project.scripts]
-D95thermo = "D95thermo:__cli"
+D95eq = "D95eq:__cli"
 
 [build-system]
-requires = ["uv_build>=0.9.0,<0.10.0"]
+requires = ["uv_build>=0.9.0,<0.12.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
