@@ -1,4 +1,4 @@
-__version__     = "1.2.0"
+__version__     = "1.2.1"
 __description__ = "Test for clumped isotope equilibrium and estimate carbonate formation temperatures from dual clumped isotope measurements"
 __authors__     = "Mathieu Daëron & Timothy Pollard"
 __contact__     = "mathieu@daeron.fr"

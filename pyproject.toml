@@ -1,9 +1,10 @@
 [project]
 name = "D95eq"
-version = "1.2.0"
+version = "1.2.1"
 description = "Test for clumped isotope equilibrium and estimate carbonate formation temperatures from dual clumped isotope measurements"
 readme = "readme.md"
 license = "MIT"
+classifiers = ["License :: OSI Approved :: MIT License"]
 authors = [
 	{ name = "Mathieu Daëron",  email = "mathieu@daeron.fr" },
 	{ name = "Timothy Pollard", email = "timothy.pollard@unimelb.edu.au" }
@@ -29,6 +30,9 @@ D95eq = "D95eq:__cli"
 [build-system]
 requires = ["uv_build>=0.9.0,<0.12.0"]
 build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "D95eq"
 
 [dependency-groups]
 dev = [
