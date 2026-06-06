@@ -19,6 +19,6 @@ Returns p-values and (statistically correlated) temperature estimates with full 
 
 + Uncertainty in the kinetic fractionation slope
 
-Full documentation at [https://mdaeron.github.io/D95eq]()
+Full documentation at [https://mdaeron.github.io/D95eq](https://mdaeron.github.io/D95eq)
 
 <img align="center" src="examples/example_plot.png">
