@@ -7,6 +7,7 @@ Test for clumped isotope equilibrium and estimate carbonate formation temperatur
 * * *
 """
 
+from __future__ import annotations
 from ._metadata import *
 from ._tools import confidence_band
 
@@ -18,10 +19,13 @@ import lmfit as _lmfit
 import correldata as _cd
 import typer as _typer
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+	from matplotlib import pyplot as _ppl
+	from matplotlib.patches import Ellipse as _Ellipse
+	from matplotlib.patches import Polygon as _Polygon
+
 from uncertainties import unumpy as _unp
-from matplotlib import pyplot as _ppl
-from matplotlib.patches import Ellipse as _Ellipse
-from matplotlib.patches import Polygon as _Polygon
 from scipy.stats import chi2 as _chi2
 from scipy.stats import norm as _norm
 from scipy.linalg import eigh as _eigh
@@ -326,6 +330,8 @@ def conf_ellipse(
 	Returns a list of the `Ellipse` objects thus created.
 	"""
 
+	from matplotlib import pyplot as _ppl
+	from matplotlib.patches import Ellipse as _Ellipse
 
 	r2 = _chi2.ppf(p, 2)
 	kwargs = dict(fc = 'None', ec = 'k', lw = 0.7) | kwargs
@@ -590,6 +596,10 @@ class Engine():
 
 		Returns the corresponding `Polygon` instance.
 		"""
+
+		from matplotlib import pyplot as _ppl
+		from matplotlib.patches import Polygon as _Polygon
+
 		if ax is None:
 			ax = _ppl.gca()
 		if Ti is None:
@@ -670,6 +680,8 @@ class Engine():
 			- `Tme`: list of `Ellipse` objects for the T marker ellipses
 			- `Tml`: list of `Text` objects for the T marker labels
 		"""
+
+		from matplotlib import pyplot as _ppl
 
 		default_kwargs_eqline = dict(
 			marker = 'None',
