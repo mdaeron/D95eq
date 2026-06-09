@@ -308,11 +308,12 @@ def conf_ellipse(
 	CM: (_np.ndarray | None) = None,
 	Xse: (_np.ndarray | float | None) = None,
 	Yse: (_np.ndarray | float | None) = None,
+	plot: bool = True,
 	ax: (_ppl.Axes | None) = None,
 	**kwargs,
 ) -> tuple:
 	"""
-	Plot the joint *p*-level confidence ellipses for the elements of (X, Y)
+	Compute and (optionally) plot the joint *p*-level confidence ellipses for the elements of (X, Y)
 
 	**Arguments**
 	* `X`: x values
@@ -324,20 +325,16 @@ def conf_ellipse(
 	* `Xse`, `Yse`: SE of X and Y; not needed if X and Y are of type
 		[`uncertainties.UFloat`](https://pythonhosted.org/uncertainties/tech_guide.html)
 		or if `CM` is specified.
+	* `plot`: whether to plot the ellipse or not. If `False`, return a list of
+		`(x_center, y_center, width, height, angle)` elements
 	* `ax`: which instance of `matplotlib.axes.Axes` to draw in; use current axes if `ax` = `None`.
 	* `kwargs`: passed to `matplotlib.patches.Ellipse()`
 
 	Returns a list of the `Ellipse` objects thus created.
 	"""
 
-	from matplotlib import pyplot as _ppl
-	from matplotlib.patches import Ellipse as _Ellipse
-
 	r2 = _chi2.ppf(p, 2)
 	kwargs = dict(fc = 'None', ec = 'k', lw = 0.7) | kwargs
-
-	if ax is None:
-		ax = _ppl.gca()
 
 	out = []
 
@@ -348,17 +345,26 @@ def conf_ellipse(
 		width, height = 2 * (val[:, None] * r2)**0.5
 		angle = _np.degrees(_np.arctan2(*vec[::-1, 0]))
 
-		out.append(
-			ax.add_patch(
-				_Ellipse(
-					xy = (x.n, y.n),
-					width = width.item(),
-					height = height.item(),
-					angle = angle,
-					**kwargs,
+		if plot:
+			from matplotlib import pyplot as _ppl
+			from matplotlib.patches import Ellipse as _Ellipse
+
+			if ax is None:
+				ax = _ppl.gca()
+
+			out.append(
+				ax.add_patch(
+					_Ellipse(
+						xy = (x.n, y.n),
+						width = width.item(),
+						height = height.item(),
+						angle = angle,
+						**kwargs,
+					)
 				)
 			)
-		)
+		else:
+			out.append([x.n, y.n, width, height, angle])
 
 	return (*out,)
 
@@ -554,6 +560,7 @@ class Engine():
 		p: float = 0.95,
 		CM: (_np.ndarray | None) = None,
 		Tse: (_np.ndarray | float | None) = None,
+		plot: bool = True,
 		ax: (_ppl.Axes | None) = None,
 		**kwargs,
 	) -> list:
@@ -565,6 +572,8 @@ class Engine():
 		**Arguments**
 		* `T`: `ndarray` or `uarray` of temperatures to plot
 		* `p`: confidence level
+		* `plot`: whether to plot the ellipse or not. If `False`, return a list of
+			`(x_center, y_center, width, height, angle)` elements
 		* `ax`: which instance of `matplotlib.axes.Axes` to draw in; use current axes if `ax` = `None`.
 		* `kwargs`: passed to `matplotlib.patches.Ellipse()`
 		"""
@@ -573,6 +582,7 @@ class Engine():
 			self.D47_calib_function(_T),
 			self.D48_calib_function(_T),
 			p = p,
+			plot = plot,
 			ax = ax,
 			**kwargs,
 		)
@@ -581,6 +591,7 @@ class Engine():
 		self,
 		p: float = 0.95,
 		Ti: (ArrayLike | None) = None,
+		plot: bool = True,
 		ax: (_ppl.Axes | None) = None,
 		**kwargs,
 	):
@@ -591,32 +602,40 @@ class Engine():
 		**Arguments**
 		* `p`: confidence level
 		* `Ti`: array of temperatures over which to evaluate confidence band (default: use `interp.T` attribute instead)
+		* `plot`: whether to plot the confidence band or not. If `False`, return the (N,2) array of polygon nodes
 		* `ax`: `Axes` instance to plot to (default: use current Axes)
 		* `kwargs`: passed to `patches.Polygon()`
 
 		Returns the corresponding `Polygon` instance.
 		"""
 
-		from matplotlib import pyplot as _ppl
-		from matplotlib.patches import Polygon as _Polygon
-
-		if ax is None:
-			ax = _ppl.gca()
 		if Ti is None:
 			Ti = self.interp.T
-		polygon = ax.add_patch(
-			_Polygon(
-				confidence_band(
-					Ti,
-					self.D47_calib_function,
-					self.D48_calib_function,
-					p,
-				),
-				closed = True,
-				**kwargs,
-			)
+
+		cb = confidence_band(
+			Ti,
+			self.D47_calib_function,
+			self.D48_calib_function,
+			p,
 		)
-		return polygon
+
+		if plot:
+			from matplotlib import pyplot as _ppl
+			from matplotlib.patches import Polygon as _Polygon
+
+			if ax is None:
+				ax = _ppl.gca()
+
+			polygon = ax.add_patch(
+				_Polygon(
+					cb,
+					closed = True,
+					**kwargs,
+				)
+			)
+			return polygon
+		else:
+			return cb
 
 
 	def plot_D95_equilibrium(
