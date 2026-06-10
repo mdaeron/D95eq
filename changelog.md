@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.4
+
+2026-06-10
+
+* Lower python requirement to 3.12 or later
+
 ## v1.2.3
 
 2026-06-09
