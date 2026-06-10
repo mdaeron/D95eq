@@ -1,6 +1,6 @@
 [project]
 name = "D95eq"
-version = "1.2.3"
+version = "1.2.4"
 description = "Test for clumped isotope equilibrium and estimate carbonate formation temperatures from dual clumped isotope measurements"
 readme = "readme.md"
 license = "MIT"
@@ -9,7 +9,7 @@ authors = [
 	{ name = "Mathieu Daëron",  email = "mathieu@daeron.fr" },
 	{ name = "Timothy Pollard", email = "timothy.pollard@unimelb.edu.au" }
 ]
-requires-python = ">=3.14"
+requires-python = "==3.12.*"
 dependencies = [
 	"correldata>=2.0.0",
 	"lmfit>=1.3.4",
