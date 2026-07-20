@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.2.5
+
+2026-07-20
+
+* No functional changes
+* Add zenodo.org metadata (used for automatic archiving of releases)
+
 ## v1.2.4
 
 2026-06-10
