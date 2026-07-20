@@ -1,0 +1,13 @@
+{
+  "title": "D95eq",
+  "upload_type": "software",
+  "creators": [
+    {
+      "name": "Daëron, Mathieu",
+      "affiliation": "Centre National de la Recherche Scientifique",
+      "orcid": "0000-0003-1210-9786"
+    }
+  ],
+  "license": "MIT",
+  "keywords": ["python", "clumped isotopes"]
+}
